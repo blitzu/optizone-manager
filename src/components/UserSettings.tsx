@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 const UserSettings = () => {
   const { currentUser, changePassword, logout } = useAuth();
@@ -14,6 +15,7 @@ const UserSettings = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +56,7 @@ const UserSettings = () => {
         // to allow them to see the success message
         setTimeout(() => {
           logout();
+          navigate("/login");
         }, 2000);
       }
     } catch (err) {

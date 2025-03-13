@@ -83,12 +83,22 @@ const ChangePassword = () => {
           description: "Parola a fost schimbată cu succes. Vă rugăm să vă autentificați din nou cu noua parolă.",
         });
         
-        // Log out the user after a short delay to allow them to see the success message
+        // Ensure we log out and redirect to login
         setTimeout(() => {
+          // First clear local storage to ensure complete logout
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          // Then call the logout function
           logout();
-          // Navigate to login page
-          navigate("/login");
+          // Explicitly navigate to login page
+          navigate("/login", { replace: true });
         }, 2000);
+      } else {
+        toast({
+          title: "Eroare",
+          description: "Nu s-a putut schimba parola. Vă rugăm să încercați din nou.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error changing password:", error);
