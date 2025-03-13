@@ -7,7 +7,7 @@ import { User, UserRole } from "@/types";
 interface AuthContextType {
   isAuthenticated: boolean;
   currentUser: User | null;
-  login: (username: string, password: string) => Promise<{
+  login: (username: string, password: string, internalIp?: string) => Promise<{
     success: boolean;
     requirePasswordChange?: boolean;
     tempToken?: string;
@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [isAuthenticated]);
 
-  const login = async (username: string, password: string): Promise<{
+  const login = async (username: string, password: string, internalIp?: string): Promise<{
     success: boolean;
     requirePasswordChange?: boolean;
     tempToken?: string;
@@ -88,17 +88,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token?: string;
   }> => {
     try {
-      const clientIp = await fetch('https://api.ipify.org?format=json')
-        .then(response => response.json())
-        .then(data => data.ip)
-        .catch(() => 'unknown');
+      const ipAddress = internalIp || 'unknown';
       
-      console.log("Sending login request with IP:", clientIp);
+      console.log("Sending login request with IP:", ipAddress);
       
       const response = await axios.post("/api/login", { 
         username, 
         password,
-        ipAddress: clientIp
+        ipAddress: ipAddress
       });
 
       console.log("Login response from server:", response.data);
