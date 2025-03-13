@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +32,12 @@ const Login = () => {
     try {
       const result = await login(username, password);
       
-      if (!result.success) {
+      if (result.success) {
+        toast({
+          title: "Autentificare reușită",
+          description: `Bine ai venit, ${result.user?.username || username}!`
+        });
+      } else {
         // Error message is shown by the login function via toast
         console.error(result.message);
       }

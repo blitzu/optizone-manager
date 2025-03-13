@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from "react";
 import axios from "axios";
 import { toast } from "@/components/ui/use-toast";
@@ -88,7 +89,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token?: string;
   }> => {
     try {
-      const response = await axios.post("/api/login", { username, password });
+      // Include client IP information if available
+      const clientIp = await fetch('https://api.ipify.org?format=json')
+        .then(response => response.json())
+        .then(data => data.ip)
+        .catch(() => 'unknown');
+      
+      // Send the login request with IP information
+      const response = await axios.post("/api/login", { 
+        username, 
+        password,
+        ipAddress: clientIp
+      });
 
       if (response.data.success) {
         localStorage.setItem("token", response.data.token);

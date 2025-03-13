@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,9 @@ import {
   Key, 
   RefreshCw, 
   UserCog,
-  Shield
+  Shield,
+  Clock,
+  Globe
 } from "lucide-react";
 import {
   AlertDialog,
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
 import EmailMessageDialog from "./EmailMessageDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const UserManagement = () => {
   const { getAllUsers, createUser, deleteUser, resetUserPassword, changeUserPassword, updateUserRole } = useAuth();
@@ -279,6 +281,17 @@ const UserManagement = () => {
     return password;
   };
 
+  const formatLastLogin = (date: string | undefined) => {
+    if (!date) return "Niciodată";
+    return new Date(date).toLocaleString('ro-RO', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   const isSuperUser = (userId: string) => userId === "1";
 
   return (
@@ -380,9 +393,9 @@ const UserManagement = () => {
                   key={user.id} 
                   className="flex items-center justify-between py-2 px-4 border rounded-md"
                 >
-                  <div className="flex items-center">
+                  <div className="flex items-center space-x-2">
                     {isSuperUser(user.id) && (
-                      <Shield className="h-4 w-4 mr-2 text-amber-500" />
+                      <Shield className="h-4 w-4 text-amber-500" />
                     )}
                     <div>
                       <p className="font-medium">{user.username}</p>
@@ -390,6 +403,25 @@ const UserManagement = () => {
                         {user.role === 'admin' ? 'Administrator' : 'Utilizator'}
                         {isSuperUser(user.id) && ' (REALIZATORUL APLICAȚIEI)'}
                       </p>
+                      {user.lastLogin && (
+                        <div className="flex items-center space-x-3 mt-1 text-xs text-gray-500">
+                          <div className="flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span>Ultimul login: {formatLastLogin(user.lastLogin.date)}</span>
+                          </div>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger className="flex items-center">
+                                <Globe className="h-3 w-3 mr-1" />
+                                <span>IP: {user.lastLogin.ipAddress || 'necunoscut'}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Adresa IP la ultima autentificare</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
