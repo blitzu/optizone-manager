@@ -34,6 +34,7 @@ const Login = () => {
       const result = await login(username, password);
       
       console.log("Login result:", result);
+      console.log("User data with lastLogin info:", result.user);
       
       if (result.success) {
         toast({
@@ -43,12 +44,18 @@ const Login = () => {
         
         // Show lastLogin info in toast if available
         if (result.user?.lastLogin) {
+          console.log("LastLogin data:", result.user.lastLogin);
           const lastLoginDate = new Date(result.user.lastLogin.date).toLocaleString('ro-RO');
           toast({
             title: "Informații de autentificare",
             description: `Ultima autentificare: ${lastLoginDate}`,
           });
+        } else {
+          console.log("No lastLogin data available in user object");
         }
+        
+        // Immediately navigate to home
+        navigate("/");
       } else {
         // Error message is shown by the login function via toast
         console.error(result.message);

@@ -101,32 +101,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         ipAddress: clientIp
       });
 
-      console.log("Login response:", response.data);
+      console.log("Login response from server:", response.data);
 
       if (response.data.success) {
-        console.log("User data from login:", response.data.user);
+        const userData = response.data.user;
+        
+        console.log("User data received from server:", userData);
+        
+        if (userData && !userData.lastLogin && response.data.lastLogin) {
+          userData.lastLogin = response.data.lastLogin;
+          console.log("Restructured lastLogin from response to user object:", userData);
+        }
+        
+        if (userData) {
+          console.log("Last login information:", userData.lastLogin);
+        }
         
         localStorage.setItem("token", response.data.token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
+        localStorage.setItem("user", JSON.stringify(userData));
         
         axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.token}`;
         
         setIsAuthenticated(true);
-        setCurrentUser(response.data.user);
+        setCurrentUser(userData);
         
         const { requirePasswordChange, tempToken } = response.data;
         
         if (requirePasswordChange && tempToken) {
           navigate(`/change-password?tempToken=${tempToken}&username=${username}`);
-        } else {
-          navigate("/");
         }
         
         return {
           success: true,
           requirePasswordChange: response.data.requirePasswordChange,
           tempToken: response.data.tempToken,
-          user: response.data.user,
+          user: userData,
           token: response.data.token
         };
       } else {
@@ -287,8 +296,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log("getAllUsers response:", response.data);
 
       if (response.data.success) {
-        console.log("Users data:", response.data.users);
-        return response.data.users;
+        const users = response.data.users;
+        
+        const processedUsers = users.map((user: any) => {
+          console.log(`Processing user ${user.username}:`, user);
+          
+          if (user.lastLoginDate && user.lastLoginIp && !user.lastLogin) {
+            user.lastLogin = {
+              date: user.lastLoginDate,
+              ipAddress: user.lastLoginIp
+            };
+            console.log(`Reconstructed lastLogin for ${user.username}:`, user.lastLogin);
+          }
+          
+          return user;
+        });
+        
+        console.log("Processed users with lastLogin:", processedUsers);
+        return processedUsers;
       } else {
         toast({
           title: "Eroare",
