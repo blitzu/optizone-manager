@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Download, Terminal } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { formatDateTime, combineDateTime, formatDateForAPI } from "@/utils/dateUtils";
 
 // Date picker component from shadcn
 import { format } from "date-fns";
@@ -81,15 +81,11 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       let combinedStartDate, combinedEndDate;
       
       if (startDate) {
-        combinedStartDate = new Date(startDate);
-        const [startHours, startMinutes] = startTime.split(':').map(Number);
-        combinedStartDate.setHours(startHours, startMinutes, 0, 0);
+        combinedStartDate = combineDateTime(startDate, startTime);
       }
       
       if (endDate) {
-        combinedEndDate = new Date(endDate);
-        const [endHours, endMinutes] = endTime.split(':').map(Number);
-        combinedEndDate.setHours(endHours, endMinutes, 59, 999);
+        combinedEndDate = combineDateTime(endDate, endTime);
       }
       
       const logData = await fetchLogs(machine, combinedStartDate, combinedEndDate);
@@ -130,7 +126,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
 
   const downloadLogs = () => {
     const formattedLogs = logs.map(log => 
-      `[${new Date(log.timestamp).toLocaleString()}] [${log.level.toUpperCase()}] ${log.message}`
+      `[${formatDateTime(log.timestamp)}] [${log.level.toUpperCase()}] ${log.message}`
     ).join('\n');
     
     const blob = new Blob([formattedLogs], { type: 'text/plain' });
@@ -207,7 +203,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                   {logs.map((log, index) => (
                     <div key={index} className={`mb-1 ${getLevelColor(log.level)}`}>
                       <span className="text-gray-400">
-                        [{new Date(log.timestamp).toLocaleString()}]
+                        [{formatDateTime(log.timestamp)}]
                       </span>{' '}
                       <span className="font-semibold">[{log.level.toUpperCase()}]</span>{' '}
                       {log.message}

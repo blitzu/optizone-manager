@@ -1,11 +1,18 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { LogOut, User } from "lucide-react";
 import MachineManager from "@/components/MachineManager";
 import LogViewer from "@/components/LogViewer";
+import UserSettings from "@/components/UserSettings";
 import { Machine } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
+  const { currentUser, logout } = useAuth();
+  const isAdmin = currentUser?.role === "admin";
+
   const [machines, setMachines] = useState<Machine[]>(() => {
     const saved = localStorage.getItem("optizone-machines");
     return saved ? JSON.parse(saved) : [];
@@ -20,29 +27,76 @@ const Index = () => {
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6">Optizone Fleet Manager</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Optizone Fleet Manager</h1>
+        <div className="flex items-center gap-4">
+          <div className="text-sm">
+            Conectat ca: <span className="font-medium">{currentUser?.username}</span> 
+            ({currentUser?.role === 'admin' ? 'Administrator' : 'Utilizator'})
+          </div>
+          <Button variant="outline" size="sm" onClick={logout}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Deconectare
+          </Button>
+        </div>
+      </div>
       
-      <Tabs defaultValue="machines" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="machines">Gestiune PC-uri</TabsTrigger>
-          <TabsTrigger value="logs" disabled={!selectedMachine}>
+      <Tabs defaultValue={isAdmin ? "machines" : "logs"} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          {isAdmin && <TabsTrigger value="machines">Gestiune PC-uri</TabsTrigger>}
+          <TabsTrigger 
+            value="logs" 
+            disabled={!selectedMachine && !isAdmin}
+          >
             Vizualizare Logs
+          </TabsTrigger>
+          <TabsTrigger value="settings">
+            Setări cont
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="machines">
-          <MachineManager 
-            machines={machines} 
-            saveMachines={saveMachines}
-            selectedMachine={selectedMachine}
-            setSelectedMachine={setSelectedMachine}
-          />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="machines">
+            <MachineManager 
+              machines={machines} 
+              saveMachines={saveMachines}
+              selectedMachine={selectedMachine}
+              setSelectedMachine={setSelectedMachine}
+            />
+          </TabsContent>
+        )}
         
         <TabsContent value="logs">
-          {selectedMachine && (
+          {selectedMachine ? (
             <LogViewer machine={selectedMachine} />
+          ) : (
+            <div className="p-8 text-center">
+              <h3 className="text-lg font-medium mb-2">Selectați un PC pentru a vizualiza logurile</h3>
+              {isAdmin ? (
+                <p>Puteți alege un PC din tab-ul "Gestiune PC-uri"</p>
+              ) : (
+                <div className="mt-4">
+                  <h4 className="font-medium mb-2">PC-uri disponibile</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {machines.map(machine => (
+                      <div 
+                        key={machine.id}
+                        className="border rounded-md p-4 cursor-pointer hover:border-primary transition-colors"
+                        onClick={() => setSelectedMachine(machine)}
+                      >
+                        <p className="font-medium">{machine.hostname}</p>
+                        <p className="text-sm text-muted-foreground">{machine.ip}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
+        </TabsContent>
+        
+        <TabsContent value="settings">
+          <UserSettings />
         </TabsContent>
       </Tabs>
     </div>

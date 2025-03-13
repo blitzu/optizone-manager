@@ -17,3 +17,17 @@ export interface LogEntry {
   level: "info" | "warning" | "error" | "debug";
   message: string;
 }
+
+export type UserRole = "admin" | "user";
+
+export interface User {
+  id: string;
+  username: string;
+  password: string; // În producție, niciodată nu stocăm parole în plaintext
+  role: UserRole;
+}
+
+export interface AuthState {
+  isAuthenticated: boolean;
+  currentUser: User | null;
+}
