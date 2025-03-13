@@ -10,7 +10,8 @@ import {
   RefreshCw,
   ArrowDown,
   PauseCircle,
-  PlayCircle
+  PlayCircle,
+  ArrowLeft
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatDateTime } from "@/utils/dateUtils";
@@ -19,9 +20,10 @@ import { sshService } from "@/services/sshService";
 
 interface LogViewerProps {
   machine: Machine;
+  onBackToList?: () => void;
 }
 
-const LogViewer = ({ machine }: LogViewerProps) => {
+const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [liveMode, setLiveMode] = useState(true);
@@ -431,7 +433,20 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     <Card className="border-0 rounded-none shadow-none">
       <CardHeader className="px-6">
         <CardTitle className="flex justify-between items-center">
-          <span>Terminal pentru {machine.hostname} ({machine.ip})</span>
+          <div className="flex items-center gap-2">
+            {onBackToList && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={onBackToList}
+                className="mr-2"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Înapoi la lista de mașini
+              </Button>
+            )}
+            <span>Terminal pentru {machine.hostname} ({machine.ip})</span>
+          </div>
           <div className="flex gap-2">
             <Button 
               variant="outline" 

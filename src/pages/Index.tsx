@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, ArrowLeft } from "lucide-react";
 import MachineManager from "@/components/MachineManager";
 import LogViewer from "@/components/LogViewer";
 import UserSettings from "@/components/UserSettings";
@@ -108,6 +108,11 @@ const Index = () => {
     setActiveTab("logs");
   };
 
+  // Handler for going back to the machine list
+  const handleBackToList = () => {
+    setSelectedMachine(null);
+  };
+
   // Verificăm dacă suntem în modul de vizualizare log-uri pentru a afișa conținutul pe toată lățimea
   const [activeTab, setActiveTab] = useState<string>(isAdmin ? "machines" : "logs");
 
@@ -138,6 +143,19 @@ const Index = () => {
             {isAdmin && <TabsTrigger value="machines">Gestiune PC-uri</TabsTrigger>}
             <TabsTrigger value="logs">
               Vizualizare Logs
+              {selectedMachine && !isAdmin && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleBackToList();
+                  }}
+                  className="ml-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
             </TabsTrigger>
             {isAdmin && <TabsTrigger value="users">Gestiune Utilizatori</TabsTrigger>}
             <TabsTrigger value="settings">
@@ -160,15 +178,28 @@ const Index = () => {
         <TabsContent value="logs" className={selectedMachine ? 'px-0' : 'px-6'}>
           {selectedMachine ? (
             <div className="space-y-4">
-              <div className="flex justify-end px-6">
+              <div className="flex justify-between px-6">
+                {!isAdmin && (
+                  <Button 
+                    variant="outline"
+                    onClick={handleBackToList}
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Înapoi la lista de mașini
+                  </Button>
+                )}
                 <Button 
                   variant="outline"
                   onClick={() => testSshConnection(selectedMachine)}
+                  className={!isAdmin ? "ml-auto" : ""}
                 >
                   Testează conexiunea SSH
                 </Button>
               </div>
-              <LogViewer machine={selectedMachine} />
+              <LogViewer 
+                machine={selectedMachine} 
+                onBackToList={handleBackToList}
+              />
             </div>
           ) : (
             <div className="p-8">
