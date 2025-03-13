@@ -1,14 +1,18 @@
-import { type Toast, type ToastActionElement } from "@/components/ui/toast"
+
+import { type ToastProps, type ToastActionElement } from "@/components/ui/toast"
 import * as React from "react"
 
 const TOAST_LIMIT = 5
 const TOAST_REMOVE_DELAY = 1000000
 
-type ToasterToast = Toast & {
+type ToasterToast = {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
+  variant?: "default" | "destructive"
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 const actionTypes = {
@@ -124,12 +128,12 @@ function dispatch(action: Action) {
   })
 }
 
-type Toast = Omit<ToasterToast, "id">
+type ToastCreationProps = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
+function toast(props: ToastCreationProps) {
   const id = generateId()
 
-  const update = (props: ToasterToast) =>
+  const update = (props: Partial<ToasterToast>) =>
     dispatch({
       type: actionTypes.UPDATE_TOAST,
       toast: { ...props, id },
@@ -177,3 +181,4 @@ function useToast() {
 }
 
 export { useToast, toast }
+export type { ToasterToast }
