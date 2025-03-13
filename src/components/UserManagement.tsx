@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,8 +41,28 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import EmailMessageDialog from "./EmailMessageDialog";
 
+const useAuthWithRoleUpdate = () => {
+  const auth = useAuth();
+  
+  if (!auth.updateUserRole) {
+    return {
+      ...auth,
+      updateUserRole: async (userId: string, role: UserRole) => {
+        console.log(`Updating user ${userId} to role ${role}`);
+        toast({
+          title: "Funcționalitate în dezvoltare",
+          description: "Schimbarea rolului va fi implementată în versiunea următoare",
+        });
+        return false;
+      }
+    };
+  }
+  
+  return auth;
+};
+
 const UserManagement = () => {
-  const { getAllUsers, createUser, deleteUser, resetUserPassword, changeUserPassword, updateUserRole } = useAuth();
+  const { getAllUsers, createUser, deleteUser, resetUserPassword, changeUserPassword, updateUserRole } = useAuthWithRoleUpdate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("user");
@@ -100,7 +119,6 @@ const UserManagement = () => {
 
     let finalPassword = password;
     
-    // Generate random password if option is selected
     if (generateRandomPassword) {
       finalPassword = generateRandomPasswordString();
     } else if (finalPassword.length < 6) {
@@ -112,7 +130,6 @@ const UserManagement = () => {
       const success = await createUser(username, finalPassword, role, requirePasswordChange);
       
       if (success) {
-        // Show email message dialog with user data including role
         setNewUserData({
           username: username,
           password: finalPassword,
@@ -121,7 +138,6 @@ const UserManagement = () => {
         });
         setShowEmailMessageDialog(true);
         
-        // Reset form
         setUsername("");
         setPassword("");
         setRole("user");
@@ -177,7 +193,6 @@ const UserManagement = () => {
       const success = await changeUserPassword(userToManage.id, finalPassword, requirePasswordChange);
       
       if (success) {
-        // Show email message dialog with user data including role
         setNewUserData({
           username: userToManage.username,
           password: finalPassword,
@@ -200,7 +215,6 @@ const UserManagement = () => {
     if (!userToManage) return;
     
     try {
-      // Only make API call if role has actually changed
       if (userToManage.role !== newRole) {
         const success = await updateUserRole(userToManage.id, newRole);
         
@@ -403,7 +417,6 @@ const UserManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Temporary Password Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent>
           <DialogHeader>
@@ -428,7 +441,6 @@ const UserManagement = () => {
             </Button>
             <Button
               onClick={() => {
-                // Close this dialog and open the email message dialog
                 setShowPasswordDialog(false);
                 
                 if (userToManage) {
@@ -448,7 +460,6 @@ const UserManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Change Password Dialog */}
       <Dialog open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
         <DialogContent>
           <DialogHeader>
@@ -508,7 +519,6 @@ const UserManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Change Role Dialog */}
       <Dialog open={showChangeRoleDialog} onOpenChange={setShowChangeRoleDialog}>
         <DialogContent>
           <DialogHeader>
@@ -545,7 +555,6 @@ const UserManagement = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Email Message Dialog */}
       <EmailMessageDialog
         open={showEmailMessageDialog}
         onOpenChange={setShowEmailMessageDialog}

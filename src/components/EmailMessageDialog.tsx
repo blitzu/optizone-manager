@@ -58,8 +58,23 @@ Cu stimă,
 `.trim();
 
   const copyToClipboard = () => {
+    const textArea = document.createElement('textarea');
+    textArea.value = emailMessage;
+    
+    // Make the textarea part of the DOM but visually hidden
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    
+    // Select and copy
+    textArea.focus();
+    textArea.select();
+    
+    let successful = false;
+    
     try {
-      // Modern approach first
+      // Try modern clipboard API first
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(emailMessage)
           .then(() => {
@@ -67,66 +82,42 @@ Cu stimă,
             toast({
               title: "Mesaj copiat",
               description: "Mesajul a fost copiat în clipboard",
-              variant: "default",
             });
             setTimeout(() => setCopied(false), 2000);
           })
-          .catch(err => {
-            console.error('Clipboard API failed:', err);
-            // Fall back to textarea method
-            fallbackCopyTextToClipboard();
+          .catch((err) => {
+            console.error('Error with Clipboard API:', err);
+            // If modern API fails, try execCommand as fallback
+            successful = document.execCommand('copy');
+            handleCopyResult(successful);
           });
       } else {
-        // Use fallback for browsers without clipboard API or non-secure contexts
-        fallbackCopyTextToClipboard();
+        // Use execCommand for browsers without clipboard API
+        successful = document.execCommand('copy');
+        handleCopyResult(successful);
       }
     } catch (err) {
-      console.error('Failed to copy text: ', err);
+      console.error('Failed to copy: ', err);
       toast({
         title: "Eroare",
         description: "Nu s-a putut copia mesajul",
         variant: "destructive",
       });
     }
+    
+    // Clean up
+    document.body.removeChild(textArea);
   };
   
-  const fallbackCopyTextToClipboard = () => {
-    try {
-      const textArea = document.createElement('textarea');
-      textArea.value = emailMessage;
-      
-      // Make it invisible but part of the document
-      textArea.style.position = 'fixed';
-      textArea.style.top = '0';
-      textArea.style.left = '0';
-      textArea.style.width = '2em';
-      textArea.style.height = '2em';
-      textArea.style.padding = '0';
-      textArea.style.border = 'none';
-      textArea.style.outline = 'none';
-      textArea.style.boxShadow = 'none';
-      textArea.style.background = 'transparent';
-      
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
-      if (successful) {
-        setCopied(true);
-        toast({
-          title: "Mesaj copiat",
-          description: "Mesajul a fost copiat în clipboard",
-          variant: "default",
-        });
-        setTimeout(() => setCopied(false), 2000);
-      } else {
-        throw new Error("Operația de copiere a eșuat");
-      }
-    } catch (err) {
-      console.error('Fallback copy method failed:', err);
+  const handleCopyResult = (successful: boolean) => {
+    if (successful) {
+      setCopied(true);
+      toast({
+        title: "Mesaj copiat",
+        description: "Mesajul a fost copiat în clipboard",
+      });
+      setTimeout(() => setCopied(false), 2000);
+    } else {
       toast({
         title: "Eroare",
         description: "Nu s-a putut copia mesajul",
