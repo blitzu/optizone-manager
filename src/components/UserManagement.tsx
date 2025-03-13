@@ -23,7 +23,9 @@ import {
   Globe,
   Info,
   UserMinus,
-  UserCheck
+  UserCheck,
+  Users,
+  UserCircle
 } from "lucide-react";
 import {
   AlertDialog,
@@ -48,6 +50,8 @@ import { toast } from "@/hooks/use-toast";
 import EmailMessageDialog from "./EmailMessageDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
 
 const UserManagement = () => {
   const { getAllUsers, createUser, deactivateUser, reactivateUser, resetUserPassword, changeUserPassword, updateUserRole } = useAuth();
@@ -69,6 +73,10 @@ const UserManagement = () => {
   const [generateRandomPassword, setGenerateRandomPassword] = useState(false);
   const [requirePasswordChange, setRequirePasswordChange] = useState(true);
   const [showEmailMessageDialog, setShowEmailMessageDialog] = useState(false);
+  const [activeUsersOpen, setActiveUsersOpen] = useState(true);
+  const [adminUsersOpen, setAdminUsersOpen] = useState(true);
+  const [regularUsersOpen, setRegularUsersOpen] = useState(true);
+  const [inactiveUsersOpen, setInactiveUsersOpen] = useState(true);
   const [newUserData, setNewUserData] = useState<{
     username: string;
     password: string | null;
@@ -96,6 +104,21 @@ const UserManagement = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Group and sort users
+  const groupedUsers = {
+    active: {
+      admin: users
+        .filter(user => user.active !== false && user.role === "admin")
+        .sort((a, b) => a.username.localeCompare(b.username)),
+      user: users
+        .filter(user => user.active !== false && user.role === "user")
+        .sort((a, b) => a.username.localeCompare(b.username))
+    },
+    inactive: users
+      .filter(user => user.active === false)
+      .sort((a, b) => a.username.localeCompare(b.username))
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -319,6 +342,136 @@ const UserManagement = () => {
   };
 
   const isSuperUser = (userId: string) => userId === "1";
+  
+  const renderUserItem = (user: User) => (
+    <div 
+      key={user.id} 
+      className="flex items-center justify-between py-2 px-4 border rounded-md mb-2 last:mb-0"
+    >
+      <div className="flex items-center space-x-2">
+        {isSuperUser(user.id) && (
+          <Shield className="h-4 w-4 text-amber-500" />
+        )}
+        <div>
+          <div className="flex items-center space-x-2">
+            <p className="font-medium">{user.username}</p>
+            {user.active === false && (
+              <Badge variant="outline" className="text-xs bg-gray-200">Dezactivat</Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {user.role === 'admin' ? 'Administrator' : 'Utilizator'}
+            {isSuperUser(user.id) && ' (REALIZATORUL APLICAȚIEI)'}
+          </p>
+          
+          {user.lastLogin ? (
+            <div className="flex items-center mt-1 text-xs text-gray-500">
+              <Clock className="h-3 w-3 mr-1" />
+              <span>Ultimul login: {formatLastLogin(user.lastLogin.date)}</span>
+            </div>
+          ) : (
+            <div className="flex items-center mt-1 text-xs text-gray-500">
+              <Info className="h-3 w-3 mr-1" />
+              <span>Fără informații de login</span>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="flex items-center space-x-2">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => {
+            setUserToManage(user);
+            setShowChangePasswordDialog(true);
+          }}
+          disabled={isSuperUser(user.id) || user.active === false}
+        >
+          <Key className="h-4 w-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => handleResetPassword(user)}
+          disabled={isSuperUser(user.id) || user.active === false}
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          disabled={isSuperUser(user.id) || user.active === false}
+          onClick={() => {
+            setUserToManage(user);
+            setNewRole(user.role);
+            setShowChangeRoleDialog(true);
+          }}
+        >
+          <UserCog className="h-4 w-4" />
+        </Button>
+        
+        {user.active === false ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setUserToReactivate(user.id)}
+              >
+                <UserCheck className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reactivare utilizator</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Ești sigur că dorești să reactivezi utilizatorul {user.username}?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setUserToReactivate(null)}>
+                  Anulează
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={handleReactivateUser}>
+                  Reactivează
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                disabled={isSuperUser(user.id)}
+                onClick={() => setUserToDeactivate(user.id)}
+              >
+                <UserMinus className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Ești sigur?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Această acțiune va dezactiva utilizatorul {user.username}. Acesta nu va mai putea accesa aplicația până când nu va fi reactivat.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setUserToDeactivate(null)}>
+                  Anulează
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeactivateUser}>
+                  Dezactivează
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-8">
@@ -404,8 +557,12 @@ const UserManagement = () => {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Utilizatori existenți</CardTitle>
+          <Button variant="outline" size="sm" onClick={loadUsers}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reîmprospătează
+          </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -413,141 +570,111 @@ const UserManagement = () => {
           ) : users.length === 0 ? (
             <p className="text-muted-foreground">Nu există alți utilizatori.</p>
           ) : (
-            <div className="space-y-4">
-              {users.map((user: User) => (
-                <div 
-                  key={user.id} 
-                  className={`flex items-center justify-between py-2 px-4 border rounded-md ${user.active === false ? 'bg-gray-100 opacity-70' : ''}`}
-                >
-                  <div className="flex items-center space-x-2">
-                    {isSuperUser(user.id) && (
-                      <Shield className="h-4 w-4 text-amber-500" />
-                    )}
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <p className="font-medium">{user.username}</p>
-                        {user.active === false && (
-                          <Badge variant="outline" className="text-xs bg-gray-200">Dezactivat</Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {user.role === 'admin' ? 'Administrator' : 'Utilizator'}
-                        {isSuperUser(user.id) && ' (REALIZATORUL APLICAȚIEI)'}
-                      </p>
-                      
-                      {user.lastLogin ? (
-                        <div className="flex items-center mt-1 text-xs text-gray-500">
-                          <Clock className="h-3 w-3 mr-1" />
-                          <span>Ultimul login: {formatLastLogin(user.lastLogin.date)}</span>
-                        </div>
+            <div className="space-y-6">
+              {/* Secțiunea utilizatori activi */}
+              <Collapsible 
+                open={activeUsersOpen} 
+                onOpenChange={setActiveUsersOpen}
+                className="border rounded-md p-2"
+              >
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-2 hover:bg-muted/50 rounded-md">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-green-600" />
+                    <h3 className="text-lg font-medium">Utilizatori activi</h3>
+                    <Badge className="ml-2 bg-green-100 text-green-800 hover:bg-green-200">
+                      {groupedUsers.active.admin.length + groupedUsers.active.user.length}
+                    </Badge>
+                  </div>
+                  <div className="text-gray-500">
+                    {activeUsersOpen ? "▼" : "▶"}
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4 px-2">
+                  {/* Subrubrica Administratori */}
+                  <Collapsible 
+                    open={adminUsersOpen} 
+                    onOpenChange={setAdminUsersOpen}
+                    className="mb-4"
+                  >
+                    <CollapsibleTrigger className="flex items-center gap-2 px-4 py-2 w-full text-left hover:bg-muted/50 rounded-md">
+                      <Shield className="h-4 w-4 text-blue-600" />
+                      <h4 className="font-medium">Administratori</h4>
+                      <Badge variant="outline" className="ml-2">
+                        {groupedUsers.active.admin.length}
+                      </Badge>
+                      <span className="ml-auto text-gray-500">
+                        {adminUsersOpen ? "▼" : "▶"}
+                      </span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="p-2 mt-2 space-y-2">
+                      {groupedUsers.active.admin.length === 0 ? (
+                        <p className="text-muted-foreground text-sm py-2 text-center">Nu există administratori</p>
                       ) : (
-                        <div className="flex items-center mt-1 text-xs text-gray-500">
-                          <Info className="h-3 w-3 mr-1" />
-                          <span>Fără informații de login</span>
-                        </div>
+                        groupedUsers.active.admin.map(user => renderUserItem(user))
                       )}
-                    </div>
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                   
-                  <div className="flex items-center space-x-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        setUserToManage(user);
-                        setShowChangePasswordDialog(true);
-                      }}
-                      disabled={isSuperUser(user.id) || user.active === false}
-                    >
-                      <Key className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleResetPassword(user)}
-                      disabled={isSuperUser(user.id) || user.active === false}
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      disabled={isSuperUser(user.id) || user.active === false}
-                      onClick={() => {
-                        setUserToManage(user);
-                        setNewRole(user.role);
-                        setShowChangeRoleDialog(true);
-                      }}
-                    >
-                      <UserCog className="h-4 w-4" />
-                    </Button>
-                    
-                    {user.active === false ? (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setUserToReactivate(user.id)}
-                          >
-                            <UserCheck className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Reactivare utilizator</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Ești sigur că dorești să reactivezi utilizatorul {user.username}?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setUserToReactivate(null)}>
-                              Anulează
-                            </AlertDialogCancel>
-                            <AlertDialogAction onClick={handleReactivateUser}>
-                              Reactivează
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    ) : (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            disabled={isSuperUser(user.id)}
-                            onClick={() => setUserToDeactivate(user.id)}
-                          >
-                            <UserMinus className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Ești sigur?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Această acțiune va dezactiva utilizatorul {user.username}. Acesta nu va mai putea accesa aplicația până când nu va fi reactivat.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setUserToDeactivate(null)}>
-                              Anulează
-                            </AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeactivateUser}>
-                              Dezactivează
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
+                  <Separator className="my-4" />
+                  
+                  {/* Subrubrica Utilizatori standard */}
+                  <Collapsible 
+                    open={regularUsersOpen} 
+                    onOpenChange={setRegularUsersOpen}
+                  >
+                    <CollapsibleTrigger className="flex items-center gap-2 px-4 py-2 w-full text-left hover:bg-muted/50 rounded-md">
+                      <UserCircle className="h-4 w-4 text-indigo-600" />
+                      <h4 className="font-medium">Utilizatori standard</h4>
+                      <Badge variant="outline" className="ml-2">
+                        {groupedUsers.active.user.length}
+                      </Badge>
+                      <span className="ml-auto text-gray-500">
+                        {regularUsersOpen ? "▼" : "▶"}
+                      </span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="p-2 mt-2 space-y-2">
+                      {groupedUsers.active.user.length === 0 ? (
+                        <p className="text-muted-foreground text-sm py-2 text-center">Nu există utilizatori standard</p>
+                      ) : (
+                        groupedUsers.active.user.map(user => renderUserItem(user))
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
+                </CollapsibleContent>
+              </Collapsible>
+              
+              {/* Secțiunea utilizatori inactivi */}
+              <Collapsible 
+                open={inactiveUsersOpen} 
+                onOpenChange={setInactiveUsersOpen}
+                className="border rounded-md p-2"
+              >
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-2 hover:bg-muted/50 rounded-md">
+                  <div className="flex items-center gap-2">
+                    <UserMinus className="h-5 w-5 text-gray-500" />
+                    <h3 className="text-lg font-medium">Utilizatori inactivi</h3>
+                    <Badge variant="outline" className="ml-2 bg-gray-100">
+                      {groupedUsers.inactive.length}
+                    </Badge>
                   </div>
-                </div>
-              ))}
+                  <div className="text-gray-500">
+                    {inactiveUsersOpen ? "▼" : "▶"}
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4 px-2">
+                  {groupedUsers.inactive.length === 0 ? (
+                    <p className="text-muted-foreground text-sm py-2 text-center">Nu există utilizatori inactivi</p>
+                  ) : (
+                    groupedUsers.inactive.map(user => renderUserItem(user))
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           )}
         </CardContent>
       </Card>
 
+      {/* Dialog components remain unchanged */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent>
           <DialogHeader>
