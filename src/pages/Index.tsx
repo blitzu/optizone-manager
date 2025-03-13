@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,12 @@ const Index = () => {
     }
   };
 
+  // Handler for selecting a machine for regular users
+  const handleSelectMachine = (machine: Machine) => {
+    setSelectedMachine(machine);
+    setActiveTab("logs");
+  };
+
   // Verificăm dacă suntem în modul de vizualizare log-uri pentru a afișa conținutul pe toată lățimea
   const [activeTab, setActiveTab] = useState<string>(isAdmin ? "machines" : "logs");
 
@@ -129,10 +136,7 @@ const Index = () => {
         <div className={`${activeTab === 'logs' && selectedMachine ? 'px-6' : ''}`}>
           <TabsList className="grid w-full grid-cols-4">
             {isAdmin && <TabsTrigger value="machines">Gestiune PC-uri</TabsTrigger>}
-            <TabsTrigger 
-              value="logs" 
-              disabled={!selectedMachine && !isAdmin}
-            >
+            <TabsTrigger value="logs">
               Vizualizare Logs
             </TabsTrigger>
             {isAdmin && <TabsTrigger value="users">Gestiune Utilizatori</TabsTrigger>}
@@ -167,25 +171,22 @@ const Index = () => {
               <LogViewer machine={selectedMachine} />
             </div>
           ) : (
-            <div className="p-8 text-center">
-              <h3 className="text-lg font-medium mb-2">Selectați un PC pentru a vizualiza logurile</h3>
-              {isAdmin ? (
-                <p>Puteți alege un PC din tab-ul "Gestiune PC-uri"</p>
+            <div className="p-8">
+              <h3 className="text-lg font-medium mb-4 text-center">Selectați un PC pentru a vizualiza logurile</h3>
+              {machines.length === 0 ? (
+                <p className="text-center text-muted-foreground">Nu există mașini disponibile pentru vizualizare.</p>
               ) : (
-                <div className="mt-4">
-                  <h4 className="font-medium mb-2">PC-uri disponibile</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {machines.map(machine => (
-                      <div 
-                        key={machine.id}
-                        className="border rounded-md p-4 cursor-pointer hover:border-primary transition-colors"
-                        onClick={() => setSelectedMachine(machine)}
-                      >
-                        <p className="font-medium">{machine.hostname}</p>
-                        <p className="text-sm text-muted-foreground">{machine.ip}</p>
-                      </div>
-                    ))}
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                  {machines.map(machine => (
+                    <div 
+                      key={machine.id}
+                      className="border rounded-md p-4 cursor-pointer hover:border-primary hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSelectMachine(machine)}
+                    >
+                      <p className="font-medium">{machine.hostname}</p>
+                      <p className="text-sm text-muted-foreground">{machine.ip}</p>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
