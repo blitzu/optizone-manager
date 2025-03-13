@@ -16,9 +16,8 @@ import {
   Trash2, 
   UserPlus, 
   Key, 
-  Copy, 
   RefreshCw, 
-  CheckCircle 
+  UserCog 
 } from "lucide-react";
 import {
   AlertDialog,
@@ -43,7 +42,7 @@ import { toast } from "@/components/ui/use-toast";
 import EmailMessageDialog from "./EmailMessageDialog";
 
 const UserManagement = () => {
-  const { getAllUsers, createUser, deleteUser, resetUserPassword, changeUserPassword } = useAuth();
+  const { getAllUsers, createUser, deleteUser, resetUserPassword, changeUserPassword, updateUserRole } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("user");
@@ -53,10 +52,11 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [passwordCopied, setPasswordCopied] = useState(false);
   const [userToManage, setUserToManage] = useState<User | null>(null);
   const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
+  const [showChangeRoleDialog, setShowChangeRoleDialog] = useState(false);
   const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<UserRole>("user");
   const [generateRandomPassword, setGenerateRandomPassword] = useState(false);
   const [requirePasswordChange, setRequirePasswordChange] = useState(true);
   const [showEmailMessageDialog, setShowEmailMessageDialog] = useState(false);
@@ -195,15 +195,33 @@ const UserManagement = () => {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        setPasswordCopied(true);
-        setTimeout(() => setPasswordCopied(false), 2000);
-      })
-      .catch(err => {
-        console.error('Failed to copy text: ', err);
+  const handleChangeRole = async () => {
+    if (!userToManage) return;
+    
+    try {
+      // Only make API call if role has actually changed
+      if (userToManage.role !== newRole) {
+        const success = await updateUserRole(userToManage.id, newRole);
+        
+        if (success) {
+          toast({
+            title: "Rol actualizat",
+            description: `Rolul utilizatorului ${userToManage.username} a fost schimbat în ${newRole === 'admin' ? 'Administrator' : 'Utilizator standard'}`,
+          });
+          
+          loadUsers();
+        }
+      }
+      
+      setShowChangeRoleDialog(false);
+    } catch (error) {
+      console.error("Error changing user role:", error);
+      toast({
+        title: "Eroare",
+        description: "Nu s-a putut schimba rolul utilizatorului",
+        variant: "destructive",
       });
+    }
   };
 
   const generateRandomPasswordString = (length = 8) => {
@@ -338,6 +356,17 @@ const UserManagement = () => {
                     >
                       <RefreshCw className="h-4 w-4" />
                     </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setUserToManage(user);
+                        setNewRole(user.role);
+                        setShowChangeRoleDialog(true);
+                      }}
+                    >
+                      <UserCog className="h-4 w-4" />
+                    </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button 
@@ -385,89 +414,32 @@ const UserManagement = () => {
           <div className="py-4">
             <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md">
               <code className="font-mono">{tempPassword}</code>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => copyToClipboard(tempPassword || "")}
-              >
-                {passwordCopied ? (
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Această parolă va fi afișată doar acum. Asigură-te că o copiezi sau notezi.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => {
-              setShowPasswordDialog(false);
-              setTempPassword(null);
-              setUserToManage(null);
-            }}>
-              Am înțeles
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Change User Password Dialog */}
-      <Dialog open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Schimbă parola utilizatorului</DialogTitle>
-            <DialogDescription>
-              {userToManage?.username}
+              
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <input
-                type="checkbox"
-                id="generateRandomPwd"
-                checked={generateRandomPassword}
-                onChange={(e) => setGenerateRandomPassword(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <Label htmlFor="generateRandomPwd" className="cursor-pointer">
-                Generează parolă aleatorie
-              </Label>
-            </div>
-            
-            {!generateRandomPassword && (
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">Parola nouă</Label>
-                <Input
-                  id="newPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required={!generateRandomPassword}
-                />
-              </div>
-            )}
-            
-            <div className="flex items-center space-x-2 my-2">
-              <input
-                type="checkbox"
-                id="requireChange"
-                checked={requirePasswordChange}
-                onChange={(e) => setRequirePasswordChange(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <Label htmlFor="requireChange" className="cursor-pointer">
-                Solicită schimbarea parolei la prima autentificare
-              </Label>
+            <div className="space-y-2">
+              <Label htmlFor="newRole">Rol nou</Label>
+              <Select 
+                value={newRole} 
+                onValueChange={(value: UserRole) => setNewRole(value)}
+              >
+                <SelectTrigger id="newRole">
+                  <SelectValue placeholder="Selectează rolul" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Administrator</SelectItem>
+                  <SelectItem value="user">Utilizator</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowChangePasswordDialog(false)}>
+            <Button variant="outline" onClick={() => setShowChangeRoleDialog(false)}>
               Anulează
             </Button>
-            <Button onClick={handleChangePassword}>
-              Schimbă parola
+            <Button onClick={handleChangeRole}>
+              Schimbă rolul
             </Button>
           </DialogFooter>
         </DialogContent>

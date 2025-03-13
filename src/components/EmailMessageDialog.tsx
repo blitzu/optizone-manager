@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Copy, CheckCircle, Clipboard, ClipboardCheck } from "lucide-react";
+import { Clipboard, ClipboardCheck } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -59,17 +59,58 @@ Cu stimă,
 
   const copyToClipboard = () => {
     try {
-      // Create a temporary textarea element to handle copy
+      // Modern approach first
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(emailMessage)
+          .then(() => {
+            setCopied(true);
+            toast({
+              title: "Mesaj copiat",
+              description: "Mesajul a fost copiat în clipboard",
+              variant: "default",
+            });
+            setTimeout(() => setCopied(false), 2000);
+          })
+          .catch(err => {
+            console.error('Clipboard API failed:', err);
+            // Fall back to textarea method
+            fallbackCopyTextToClipboard();
+          });
+      } else {
+        // Use fallback for browsers without clipboard API or non-secure contexts
+        fallbackCopyTextToClipboard();
+      }
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      toast({
+        title: "Eroare",
+        description: "Nu s-a putut copia mesajul",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const fallbackCopyTextToClipboard = () => {
+    try {
       const textArea = document.createElement('textarea');
       textArea.value = emailMessage;
       
       // Make it invisible but part of the document
       textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
+      textArea.style.top = '0';
+      textArea.style.left = '0';
+      textArea.style.width = '2em';
+      textArea.style.height = '2em';
+      textArea.style.padding = '0';
+      textArea.style.border = 'none';
+      textArea.style.outline = 'none';
+      textArea.style.boxShadow = 'none';
+      textArea.style.background = 'transparent';
       
-      // Select and copy
+      document.body.appendChild(textArea);
+      textArea.focus();
       textArea.select();
+      
       const successful = document.execCommand('copy');
       document.body.removeChild(textArea);
       
@@ -85,7 +126,7 @@ Cu stimă,
         throw new Error("Operația de copiere a eșuat");
       }
     } catch (err) {
-      console.error('Failed to copy text: ', err);
+      console.error('Fallback copy method failed:', err);
       toast({
         title: "Eroare",
         description: "Nu s-a putut copia mesajul",
