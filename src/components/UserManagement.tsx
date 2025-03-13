@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +18,8 @@ import {
   UserPlus, 
   Key, 
   RefreshCw, 
-  UserCog 
+  UserCog,
+  Shield
 } from "lucide-react";
 import {
   AlertDialog,
@@ -148,6 +150,17 @@ const UserManagement = () => {
 
   const handleDeleteUser = async () => {
     if (userToDelete) {
+      // Check if trying to delete superuser (user with id "1")
+      if (userToDelete === "1") {
+        toast({
+          title: "Operațiune interzisă",
+          description: "Acest utilizator nu poate fi șters.",
+          variant: "destructive",
+        });
+        setUserToDelete(null);
+        return;
+      }
+      
       try {
         const success = await deleteUser(userToDelete);
         if (success) {
@@ -210,6 +223,17 @@ const UserManagement = () => {
   const handleChangeRole = async () => {
     if (!userToManage) return;
     
+    // Prevent changing role of superuser (user with id "1")
+    if (userToManage.id === "1" && userToManage.role !== newRole) {
+      toast({
+        title: "Operațiune interzisă",
+        description: "Rolul acestui utilizator nu poate fi modificat.",
+        variant: "destructive",
+      });
+      setShowChangeRoleDialog(false);
+      return;
+    }
+    
     try {
       if (userToManage.role !== newRole) {
         const success = await updateUserRole(userToManage.id, newRole);
@@ -243,6 +267,8 @@ const UserManagement = () => {
     }
     return password;
   };
+
+  const isSuperUser = (userId: string) => userId === "1";
 
   return (
     <div className="space-y-8">
@@ -343,11 +369,17 @@ const UserManagement = () => {
                   key={user.id} 
                   className="flex items-center justify-between py-2 px-4 border rounded-md"
                 >
-                  <div>
-                    <p className="font-medium">{user.username}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {user.role === 'admin' ? 'Administrator' : 'Utilizator'}
-                    </p>
+                  <div className="flex items-center">
+                    {isSuperUser(user.id) && (
+                      <Shield className="h-4 w-4 mr-2 text-amber-500" />
+                    )}
+                    <div>
+                      <p className="font-medium">{user.username}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {user.role === 'admin' ? 'Administrator' : 'Utilizator'}
+                        {isSuperUser(user.id) && ' (Superuser)'}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button 
@@ -370,6 +402,7 @@ const UserManagement = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
+                      disabled={isSuperUser(user.id)}
                       onClick={() => {
                         setUserToManage(user);
                         setNewRole(user.role);
@@ -383,6 +416,7 @@ const UserManagement = () => {
                         <Button 
                           variant="destructive" 
                           size="sm"
+                          disabled={isSuperUser(user.id)}
                           onClick={() => setUserToDelete(user.id)}
                         >
                           <Trash2 className="h-4 w-4" />

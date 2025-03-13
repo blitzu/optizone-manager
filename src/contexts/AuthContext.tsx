@@ -22,6 +22,7 @@ interface AuthContextType {
   deleteUser: (userId: string) => Promise<boolean>;
   resetUserPassword: (userId: string) => Promise<string | null>;
   changeUserPassword: (userId: string, newPassword: string, requirePasswordChange?: boolean) => Promise<boolean>;
+  updateUserRole?: (userId: string, role: UserRole) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,12 +38,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       : { isAuthenticated: false, currentUser: null };
   });
 
-  // Initialize auth state from local storage
   useEffect(() => {
     const checkAuthStatus = async () => {
       if (authState.isAuthenticated && authState.currentUser) {
         try {
-          // Verify if the token is still valid with the server
           const response = await fetch(`${API_URL}/verify-auth`, {
             headers: {
               Authorization: `Bearer ${localStorage.getItem('auth-token')}`
@@ -50,7 +49,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           });
           
           if (!response.ok) {
-            // If token is invalid, logout
             logout();
             return;
           }
@@ -61,7 +59,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } catch (error) {
           console.error("Error verifying authentication:", error);
-          // On error, we keep the current state
         }
       }
     };
@@ -71,7 +68,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (username: string, password: string): Promise<LoginResponse> => {
     try {
-      // Make API call to login endpoint
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: {
@@ -83,7 +79,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
       
       if (data.success) {
-        // Store auth token if provided
         if (data.token) {
           localStorage.setItem('auth-token', data.token);
         }
@@ -161,7 +156,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
       
       if (data.success) {
-        // Update local state with new password
         const updatedUser = { ...authState.currentUser, password: newPassword };
         const newState = { ...authState, currentUser: updatedUser };
         setAuthState(newState);
@@ -183,7 +177,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error changing password:", error);
       
-      // Fallback to local storage during development
       if (authState.currentUser.password !== oldPassword) {
         toast({
           title: "Eroare",
@@ -205,7 +198,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("optizone-users", JSON.stringify(updatedUsers));
       }
 
-      // Update local state
       const updatedUser = { ...authState.currentUser, password: newPassword };
       const newState = { ...authState, currentUser: updatedUser };
       setAuthState(newState);
@@ -221,7 +213,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const getAllUsers = async (): Promise<User[]> => {
     try {
-      // Only admin can get all users
       if (!authState.currentUser || authState.currentUser.role !== 'admin') {
         return [];
       }
@@ -235,7 +226,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
       
       if (data.success) {
-        // Filter out current user
         return data.users.filter((user: User) => user.id !== authState.currentUser?.id);
       } else {
         toast({
@@ -248,7 +238,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error getting users:", error);
       
-      // Fallback to local storage during development
       const savedUsers = localStorage.getItem("optizone-users");
       const users = savedUsers ? JSON.parse(savedUsers) : [];
       return users.filter((user: User) => user.id !== authState.currentUser?.id);
@@ -257,7 +246,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const createUser = async (username: string, password: string, role: UserRole, requirePasswordChange: boolean = true): Promise<boolean> => {
     try {
-      // Only admin can create users
       if (!authState.currentUser || authState.currentUser.role !== 'admin') {
         toast({
           title: "Permisiune refuzată",
@@ -295,11 +283,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error creating user:", error);
       
-      // Fallback to local storage during development
       const savedUsers = localStorage.getItem("optizone-users");
       const users = savedUsers ? JSON.parse(savedUsers) : [];
       
-      // Check if username already exists
       if (users.some((user: User) => user.username === username)) {
         toast({
           title: "Eroare",
@@ -309,7 +295,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
       
-      // Generate a new ID
       const newId = Math.max(...users.map((user: User) => parseInt(user.id)), 0) + 1;
       
       const newUser: User = {
@@ -333,7 +318,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteUser = async (userId: string): Promise<boolean> => {
     try {
-      // Only admin can delete users
       if (!authState.currentUser || authState.currentUser.role !== 'admin') {
         toast({
           title: "Permisiune refuzată",
@@ -343,11 +327,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
       
-      // Cannot delete yourself
       if (userId === authState.currentUser.id) {
         toast({
           title: "Eroare",
           description: "Nu vă puteți șterge propriul cont.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      if (userId === "1") {
+        toast({
+          title: "Operațiune interzisă",
+          description: "Acest utilizator nu poate fi șters.",
           variant: "destructive",
         });
         return false;
@@ -379,14 +371,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error deleting user:", error);
       
-      // Fallback to local storage during development
       const savedUsers = localStorage.getItem("optizone-users");
       if (!savedUsers) return false;
+      
+      if (userId === "1") {
+        toast({
+          title: "Operațiune interzisă",
+          description: "Acest utilizator nu poate fi șters.",
+          variant: "destructive",
+        });
+        return false;
+      }
       
       const users = JSON.parse(savedUsers);
       const updatedUsers = users.filter((user: User) => user.id !== userId);
       
-      // If no users were removed, the ID was invalid
       if (updatedUsers.length === users.length) {
         toast({
           title: "Eroare",
@@ -408,7 +407,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const resetUserPassword = async (userId: string): Promise<string | null> => {
     try {
-      // Only admin can reset passwords
       if (!authState.currentUser || authState.currentUser.role !== 'admin') {
         toast({
           title: "Permisiune refuzată",
@@ -444,7 +442,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error resetting password:", error);
       
-      // Fallback to local storage during development
       const savedUsers = localStorage.getItem("optizone-users");
       if (!savedUsers) return null;
       
@@ -460,10 +457,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return null;
       }
       
-      // Generate random password
       const tempPassword = generateRandomPassword();
       
-      // Update user with temporary password
       const updatedUsers = users.map((u: User) =>
         u.id === userId ? { ...u, password: tempPassword, requirePasswordChange: true } : u
       );
@@ -480,7 +475,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const changeUserPassword = async (userId: string, newPassword: string, requirePasswordChange: boolean = false): Promise<boolean> => {
     try {
-      // Only admin can change other users' passwords
       if (!authState.currentUser || authState.currentUser.role !== 'admin') {
         toast({
           title: "Permisiune refuzată",
@@ -518,7 +512,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error changing user password:", error);
       
-      // Fallback to local storage during development
       const savedUsers = localStorage.getItem("optizone-users");
       if (!savedUsers) return false;
       
@@ -534,7 +527,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
       
-      // Update user password
       const updatedUsers = users.map((u: User) =>
         u.id === userId ? { ...u, password: newPassword, requirePasswordChange } : u
       );
@@ -544,6 +536,89 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({
         title: "Succes",
         description: "Parola utilizatorului a fost schimbată cu succes.",
+      });
+      return true;
+    }
+  };
+
+  const updateUserRole = async (userId: string, role: UserRole): Promise<boolean> => {
+    try {
+      if (!authState.currentUser || authState.currentUser.role !== 'admin') {
+        toast({
+          title: "Permisiune refuzată",
+          description: "Nu aveți permisiunea de a schimba rolurile utilizatorilor.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      if (userId === "1") {
+        toast({
+          title: "Operațiune interzisă",
+          description: "Rolul acestui utilizator nu poate fi modificat.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      const response = await fetch(`${API_URL}/users/${userId}/role`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+        },
+        body: JSON.stringify({ role }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Succes",
+          description: "Rolul utilizatorului a fost actualizat cu succes.",
+        });
+        return true;
+      } else {
+        toast({
+          title: "Eroare",
+          description: data.message || "Eroare la actualizarea rolului.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      
+      const savedUsers = localStorage.getItem("optizone-users");
+      if (!savedUsers) return false;
+      
+      if (userId === "1") {
+        toast({
+          title: "Operațiune interzisă",
+          description: "Rolul acestui utilizator nu poate fi modificat.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      const users = JSON.parse(savedUsers);
+      const userIndex = users.findIndex((user: User) => user.id === userId);
+      
+      if (userIndex === -1) {
+        toast({
+          title: "Eroare",
+          description: "Utilizatorul nu a fost găsit.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      users[userIndex].role = role;
+      localStorage.setItem("optizone-users", JSON.stringify(users));
+      
+      toast({
+        title: "Succes",
+        description: "Rolul utilizatorului a fost actualizat cu succes.",
       });
       return true;
     }
@@ -562,6 +637,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         deleteUser,
         resetUserPassword,
         changeUserPassword,
+        updateUserRole,
       }}
     >
       {children}
@@ -569,7 +645,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Helper function to generate random password
 function generateRandomPassword(length = 8): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let password = "";
