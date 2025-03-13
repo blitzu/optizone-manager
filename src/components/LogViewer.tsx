@@ -4,15 +4,16 @@ import { Machine, LogEntry } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Download, Terminal } from "lucide-react";
+import { AlertCircle, Download, Terminal, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { formatDateTime, combineDateTime, formatDateForAPI } from "@/utils/dateUtils";
-import { TimeInput } from "@/components/ui/time-input";
+import { formatDateTime, formatDateForAPI } from "@/utils/dateUtils";
+import { Input } from "@/components/ui/input";
 
 // Date picker component from shadcn
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 // Funcție pentru simularea obținerii de log-uri (în aplicația reală, aceasta ar face un apel la un backend)
 const fetchLogs = (machine: Machine, startDate?: Date, endDate?: Date): Promise<LogEntry[]> => {
@@ -59,10 +60,8 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [liveMode, setLiveMode] = useState(false);
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
-  const [startTime, setStartTime] = useState("00:00");
-  const [endTime, setEndTime] = useState("23:59");
+  const [startDateTime, setStartDateTime] = useState<Date>();
+  const [endDateTime, setEndDateTime] = useState<Date>();
   const liveIntervalRef = useRef<number>();
 
   const getLevelColor = (level: LogEntry['level']) => {
@@ -78,18 +77,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const fetchLogData = async () => {
     setLoading(true);
     try {
-      // Combine date and time for start and end dates
-      let combinedStartDate, combinedEndDate;
-      
-      if (startDate) {
-        combinedStartDate = combineDateTime(startDate, startTime);
-      }
-      
-      if (endDate) {
-        combinedEndDate = combineDateTime(endDate, endTime);
-      }
-      
-      const logData = await fetchLogs(machine, combinedStartDate, combinedEndDate);
+      const logData = await fetchLogs(machine, startDateTime, endDateTime);
       setLogs(logData);
     } catch (error) {
       toast({
@@ -156,6 +144,12 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     };
   }, [machine.id]);
 
+  // Format personalizat pentru data și ora
+  const formatDateTimeDisplay = (date: Date | undefined) => {
+    if (!date) return "";
+    return format(date, "dd.MM.yyyy HH:mm");
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -220,75 +214,183 @@ const LogViewer = ({ machine }: LogViewerProps) => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium mb-1 block">De la data</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left"
-                        >
-                          {startDate ? format(startDate, "PPP") : "Alege data de început"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={startDate}
-                          onSelect={setStartDate}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <label className="text-sm font-medium mb-1 block">De la data și ora</label>
+                    <div className="relative">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left"
+                          >
+                            {startDateTime ? (
+                              formatDateTimeDisplay(startDateTime)
+                            ) : (
+                              "Alege data și ora de început"
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <div className="p-3">
+                            <div className="space-y-3">
+                              <Calendar
+                                mode="single"
+                                selected={startDateTime}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    // Păstrăm ora dacă există deja, altfel setăm la 00:00
+                                    const newDate = new Date(date);
+                                    if (startDateTime) {
+                                      newDate.setHours(
+                                        startDateTime.getHours(),
+                                        startDateTime.getMinutes(),
+                                        0, 0
+                                      );
+                                    } else {
+                                      newDate.setHours(0, 0, 0, 0);
+                                    }
+                                    setStartDateTime(newDate);
+                                  }
+                                }}
+                                initialFocus
+                                className="pointer-events-auto"
+                              />
+                              
+                              <div className="px-1 pb-2">
+                                <label className="text-xs font-medium block mb-1">Ora:</label>
+                                <div className="flex items-center space-x-2">
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={23}
+                                    placeholder="Ore"
+                                    className="w-16 text-center"
+                                    value={startDateTime ? startDateTime.getHours() : ""}
+                                    onChange={(e) => {
+                                      const hours = parseInt(e.target.value);
+                                      if (!isNaN(hours) && hours >= 0 && hours <= 23) {
+                                        const newDate = new Date(startDateTime || new Date());
+                                        newDate.setHours(hours);
+                                        setStartDateTime(newDate);
+                                      }
+                                    }}
+                                  />
+                                  <span>:</span>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={59}
+                                    placeholder="Minute"
+                                    className="w-16 text-center"
+                                    value={startDateTime ? startDateTime.getMinutes() : ""}
+                                    onChange={(e) => {
+                                      const minutes = parseInt(e.target.value);
+                                      if (!isNaN(minutes) && minutes >= 0 && minutes <= 59) {
+                                        const newDate = new Date(startDateTime || new Date());
+                                        newDate.setMinutes(minutes);
+                                        setStartDateTime(newDate);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
+                  
                   <div>
-                    <label className="text-sm font-medium mb-1 block">Până la data</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left"
-                        >
-                          {endDate ? format(endDate, "PPP") : "Alege data de sfârșit"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={endDate}
-                          onSelect={setEndDate}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <label className="text-sm font-medium mb-1 block">Până la data și ora</label>
+                    <div className="relative">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left"
+                          >
+                            {endDateTime ? (
+                              formatDateTimeDisplay(endDateTime)
+                            ) : (
+                              "Alege data și ora de sfârșit"
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <div className="p-3">
+                            <div className="space-y-3">
+                              <Calendar
+                                mode="single"
+                                selected={endDateTime}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    // Păstrăm ora dacă există deja, altfel setăm la 23:59
+                                    const newDate = new Date(date);
+                                    if (endDateTime) {
+                                      newDate.setHours(
+                                        endDateTime.getHours(),
+                                        endDateTime.getMinutes(),
+                                        0, 0
+                                      );
+                                    } else {
+                                      newDate.setHours(23, 59, 0, 0);
+                                    }
+                                    setEndDateTime(newDate);
+                                  }
+                                }}
+                                initialFocus
+                                className="pointer-events-auto"
+                              />
+                              
+                              <div className="px-1 pb-2">
+                                <label className="text-xs font-medium block mb-1">Ora:</label>
+                                <div className="flex items-center space-x-2">
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={23}
+                                    placeholder="Ore"
+                                    className="w-16 text-center"
+                                    value={endDateTime ? endDateTime.getHours() : ""}
+                                    onChange={(e) => {
+                                      const hours = parseInt(e.target.value);
+                                      if (!isNaN(hours) && hours >= 0 && hours <= 23) {
+                                        const newDate = new Date(endDateTime || new Date());
+                                        newDate.setHours(hours);
+                                        setEndDateTime(newDate);
+                                      }
+                                    }}
+                                  />
+                                  <span>:</span>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={59}
+                                    placeholder="Minute"
+                                    className="w-16 text-center"
+                                    value={endDateTime ? endDateTime.getMinutes() : ""}
+                                    onChange={(e) => {
+                                      const minutes = parseInt(e.target.value);
+                                      if (!isNaN(minutes) && minutes >= 0 && minutes <= 59) {
+                                        const newDate = new Date(endDateTime || new Date());
+                                        newDate.setMinutes(minutes);
+                                        setEndDateTime(newDate);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Ora de început</label>
-                    <TimeInput
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      defaultHour="00"
-                      defaultMinute="00"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Ora de sfârșit</label>
-                    <TimeInput
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      defaultHour="23"
-                      defaultMinute="59"
-                    />
-                  </div>
-                </div>
-                
-                {startDate && endDate && (
-                  startDate > endDate || (startDate.getTime() === endDate.getTime() && startTime > endTime)
-                ) && (
+                {startDateTime && endDateTime && startDateTime > endDateTime && (
                   <div className="flex items-center rounded-md bg-amber-100 text-amber-800 px-4 py-2 text-sm">
                     <AlertCircle className="h-4 w-4 mr-2" />
                     Intervalul de timp selectat nu este valid
@@ -297,9 +399,8 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                 
                 <Button 
                   onClick={fetchLogData} 
-                  disabled={loading || !startDate || !endDate || 
-                    (startDate > endDate) || 
-                    (startDate.getTime() === endDate.getTime() && startTime > endTime)}
+                  disabled={loading || !startDateTime || !endDateTime || 
+                    (startDateTime > endDateTime)}
                   className="w-full"
                 >
                   {loading ? 
