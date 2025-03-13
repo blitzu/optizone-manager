@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Edit, Trash2, Server } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -26,16 +25,14 @@ const MachineManager = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentMachine, setCurrentMachine] = useState<Partial<Machine>>({
     ip: "",
-    hostname: "",
-    os: "ubuntu_22.04"
+    hostname: ""
   });
   const [isEditing, setIsEditing] = useState(false);
 
   const resetForm = () => {
     setCurrentMachine({
       ip: "",
-      hostname: "",
-      os: "ubuntu_22.04"
+      hostname: ""
     });
     setIsEditing(false);
   };
@@ -133,7 +130,6 @@ const MachineManager = ({
               <TableRow>
                 <TableHead>Hostname</TableHead>
                 <TableHead>IP</TableHead>
-                <TableHead>Sistem de operare</TableHead>
                 <TableHead className="text-right">Acțiuni</TableHead>
               </TableRow>
             </TableHeader>
@@ -146,9 +142,6 @@ const MachineManager = ({
                 >
                   <TableCell className="font-medium">{machine.hostname}</TableCell>
                   <TableCell>{machine.ip}</TableCell>
-                  <TableCell>
-                    {machine.os === "ubuntu_20.04" ? "Ubuntu 20.04" : "Ubuntu 22.04"}
-                  </TableCell>
                   <TableCell className="text-right">
                     <Button 
                       variant="ghost" 
@@ -188,6 +181,9 @@ const MachineManager = ({
             <DialogTitle>
               {isEditing ? "Editează mașina" : "Adaugă mașină nouă"}
             </DialogTitle>
+            <DialogDescription>
+              Completează informațiile necesare pentru a {isEditing ? "actualiza" : "adăuga"} o mașină.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div>
@@ -205,21 +201,6 @@ const MachineManager = ({
                 onChange={e => setCurrentMachine({...currentMachine, ip: e.target.value})}
                 placeholder="ex: 192.168.1.100"
               />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Sistem de operare</label>
-              <Select 
-                value={currentMachine.os} 
-                onValueChange={value => setCurrentMachine({...currentMachine, os: value as Machine['os']})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selectează OS" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ubuntu_20.04">Ubuntu 20.04</SelectItem>
-                  <SelectItem value="ubuntu_22.04">Ubuntu 22.04</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <DialogFooter>

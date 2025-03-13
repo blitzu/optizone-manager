@@ -7,7 +7,7 @@ import { Machine } from "@/types";
 
 const Index = () => {
   const [machines, setMachines] = useState<Machine[]>(() => {
-    const saved = localStorage.getItem("ubuntu-machines");
+    const saved = localStorage.getItem("optizone-machines");
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -15,12 +15,12 @@ const Index = () => {
 
   const saveMachines = (updatedMachines: Machine[]) => {
     setMachines(updatedMachines);
-    localStorage.setItem("ubuntu-machines", JSON.stringify(updatedMachines));
+    localStorage.setItem("optizone-machines", JSON.stringify(updatedMachines));
   };
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6">Ubuntu Fleet Manager</h1>
+      <h1 className="text-3xl font-bold mb-6">Optizone Fleet Manager</h1>
       
       <Tabs defaultValue="machines" className="w-full">
         <TabsList className="grid w-full grid-cols-2">

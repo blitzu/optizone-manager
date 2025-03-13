@@ -60,6 +60,8 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const [liveMode, setLiveMode] = useState(false);
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
+  const [startTime, setStartTime] = useState("00:00");
+  const [endTime, setEndTime] = useState("23:59");
   const liveIntervalRef = useRef<number>();
 
   const getLevelColor = (level: LogEntry['level']) => {
@@ -75,7 +77,22 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const fetchLogData = async () => {
     setLoading(true);
     try {
-      const logData = await fetchLogs(machine, startDate, endDate);
+      // Combine date and time for start and end dates
+      let combinedStartDate, combinedEndDate;
+      
+      if (startDate) {
+        combinedStartDate = new Date(startDate);
+        const [startHours, startMinutes] = startTime.split(':').map(Number);
+        combinedStartDate.setHours(startHours, startMinutes, 0, 0);
+      }
+      
+      if (endDate) {
+        combinedEndDate = new Date(endDate);
+        const [endHours, endMinutes] = endTime.split(':').map(Number);
+        combinedEndDate.setHours(endHours, endMinutes, 59, 999);
+      }
+      
+      const logData = await fetchLogs(machine, combinedStartDate, combinedEndDate);
       setLogs(logData);
     } catch (error) {
       toast({
@@ -170,7 +187,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         <Tabs defaultValue="view" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="view">Vizualizare</TabsTrigger>
-            <TabsTrigger value="filter">Filtrare după dată</TabsTrigger>
+            <TabsTrigger value="filter">Filtrare după dată și oră</TabsTrigger>
           </TabsList>
           
           <TabsContent value="view">
@@ -249,16 +266,39 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                   </div>
                 </div>
                 
-                {startDate && endDate && startDate > endDate && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Ora de început</label>
+                    <Input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Ora de sfârșit</label>
+                    <Input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                {startDate && endDate && (
+                  startDate > endDate || (startDate.getTime() === endDate.getTime() && startTime > endTime)
+                ) && (
                   <div className="flex items-center rounded-md bg-amber-100 text-amber-800 px-4 py-2 text-sm">
                     <AlertCircle className="h-4 w-4 mr-2" />
-                    Data de început nu poate fi mai mare decât data de sfârșit
+                    Intervalul de timp selectat nu este valid
                   </div>
                 )}
                 
                 <Button 
                   onClick={fetchLogData} 
-                  disabled={loading || !startDate || !endDate || startDate > endDate}
+                  disabled={loading || !startDate || !endDate || 
+                    (startDate > endDate) || 
+                    (startDate.getTime() === endDate.getTime() && startTime > endTime)}
                   className="w-full"
                 >
                   {loading ? 
