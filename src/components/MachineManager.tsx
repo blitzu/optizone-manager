@@ -1,21 +1,28 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useRef } from "react";
 import { Machine, MachineResponse } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Edit, Trash2, Server, Terminal, RefreshCw } from "lucide-react";
+import { Edit, Trash2, Server, Terminal, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { appConfig } from "@/config/appConfig";
 import { sshService } from "@/services/sshService";
 import { useAuth } from "@/contexts/AuthContext";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface MachineManagerProps {
   machines: Machine[];
   saveMachines: (machines: Machine[]) => void;
   selectedMachine: Machine | null;
   setSelectedMachine: (machine: Machine | null) => void;
+}
+
+interface MachineWithStatus extends Machine {
+  isOnline?: boolean;
+  lastChecked?: Date;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -35,6 +42,9 @@ const MachineManager = ({
   });
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [machinesWithStatus, setMachinesWithStatus] = useState<MachineWithStatus[]>([]);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const statusCheckIntervalRef = useRef<number | null>(null);
   const { currentUser } = useAuth();
 
   useEffect(() => {
@@ -44,7 +54,81 @@ const MachineManager = ({
     } else {
       console.log("MachineManager: nu există utilizator autentificat sau id lipsește");
     }
+
+    return () => {
+      if (statusCheckIntervalRef.current) {
+        clearInterval(statusCheckIntervalRef.current);
+      }
+    };
   }, [currentUser]);
+
+  useEffect(() => {
+    // Update the machinesWithStatus array when machines change
+    setMachinesWithStatus(prevMachinesWithStatus => {
+      return machines.map(machine => {
+        const existingMachine = prevMachinesWithStatus.find(m => m.id === machine.id);
+        return {
+          ...machine,
+          isOnline: existingMachine?.isOnline,
+          lastChecked: existingMachine?.lastChecked
+        };
+      });
+    });
+  }, [machines]);
+
+  useEffect(() => {
+    // Start the status check interval when machinesWithStatus changes
+    if (machinesWithStatus.length > 0 && !statusCheckIntervalRef.current) {
+      checkAllMachinesStatus();
+      
+      // Set up interval to check status every 30 seconds
+      statusCheckIntervalRef.current = window.setInterval(() => {
+        checkAllMachinesStatus();
+      }, 30000);
+    }
+
+    return () => {
+      if (statusCheckIntervalRef.current) {
+        clearInterval(statusCheckIntervalRef.current);
+        statusCheckIntervalRef.current = null;
+      }
+    };
+  }, [machinesWithStatus]);
+
+  const checkAllMachinesStatus = async () => {
+    if (checkingStatus || machinesWithStatus.length === 0) return;
+    
+    setCheckingStatus(true);
+    
+    try {
+      console.log("Verificare status pentru toate mașinile...");
+      const updatedMachines = [...machinesWithStatus];
+      
+      for (let i = 0; i < updatedMachines.length; i++) {
+        try {
+          const result = await sshService.testConnection(updatedMachines[i]);
+          updatedMachines[i] = {
+            ...updatedMachines[i],
+            isOnline: result.success,
+            lastChecked: new Date()
+          };
+        } catch (error) {
+          console.error(`Eroare la verificarea mașinii ${updatedMachines[i].hostname}:`, error);
+          updatedMachines[i] = {
+            ...updatedMachines[i],
+            isOnline: false,
+            lastChecked: new Date()
+          };
+        }
+      }
+      
+      setMachinesWithStatus(updatedMachines);
+    } catch (error) {
+      console.error("Eroare la verificarea status-ului mașinilor:", error);
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
 
   const fetchMachines = async () => {
     setIsLoading(true);
@@ -332,6 +416,15 @@ const MachineManager = ({
             <Button 
               variant="outline" 
               size="sm" 
+              onClick={checkAllMachinesStatus}
+              disabled={checkingStatus}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${checkingStatus ? 'animate-spin' : ''}`} />
+              {checkingStatus ? "Verificare..." : "Verifică status"}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
               onClick={fetchMachines}
               disabled={isLoading}
             >
@@ -352,18 +445,57 @@ const MachineManager = ({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Status</TableHead>
                 <TableHead>Hostname</TableHead>
                 <TableHead>IP</TableHead>
                 <TableHead className="text-right">Acțiuni</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {machines.map(machine => (
+              {machinesWithStatus.map(machine => (
                 <TableRow 
                   key={machine.id} 
                   className={`cursor-pointer ${selectedMachine?.id === machine.id ? 'bg-muted' : ''}`}
                   onClick={() => handleSelectMachine(machine)}
                 >
+                  <TableCell>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          {machine.isOnline === undefined ? (
+                            <div className="flex items-center">
+                              <div className="h-3 w-3 rounded-full bg-gray-300 mr-2"></div>
+                              <span className="text-xs text-muted-foreground">Necunoscut</span>
+                            </div>
+                          ) : machine.isOnline ? (
+                            <div className="flex items-center">
+                              <div className="h-3 w-3 rounded-full bg-green-500 mr-2"></div>
+                              <Wifi className="h-4 w-4 text-green-500" />
+                            </div>
+                          ) : (
+                            <div className="flex items-center">
+                              <div className="h-3 w-3 rounded-full bg-red-500 mr-2"></div>
+                              <WifiOff className="h-4 w-4 text-red-500" />
+                            </div>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {machine.isOnline === undefined ? (
+                          <span>Status necunoscut</span>
+                        ) : machine.isOnline ? (
+                          <span>Online - Conectat prin SSH</span>
+                        ) : (
+                          <span>Offline - Nu se poate conecta prin SSH</span>
+                        )}
+                        {machine.lastChecked && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Ultima verificare: {machine.lastChecked.toLocaleTimeString()}
+                          </div>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableCell>
                   <TableCell className="font-medium">{machine.hostname}</TableCell>
                   <TableCell>{machine.ip}</TableCell>
                   <TableCell className="text-right">
@@ -465,4 +597,3 @@ const MachineManager = ({
 };
 
 export default MachineManager;
-
