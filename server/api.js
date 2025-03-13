@@ -1,3 +1,4 @@
+
 /**
  * Server API Express pentru Optizone Fleet Manager
  * 
@@ -11,9 +12,19 @@ const express = require('express');
 const cors = require('cors');
 const { Client } = require('ssh2');
 const path = require('path');
+const fs = require('fs');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Secret pentru JWT
+const JWT_SECRET = process.env.JWT_SECRET || 'optizone-fleet-manager-secret-key';
+
+// Path pentru fișierul cu utilizatori
+const USERS_FILE_PATH = path.join(__dirname, 'users.json');
 
 // Middleware
 app.use(cors());
@@ -23,6 +34,404 @@ app.use(express.json());
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../dist')));
 }
+
+// Funcție pentru a citi utilizatorii din fișier
+function getUsers() {
+  if (!fs.existsSync(USERS_FILE_PATH)) {
+    // Inițializăm cu utilizatori impliciti dacă fișierul nu există
+    const defaultUsers = [
+      {
+        id: "1",
+        username: "admin",
+        password: bcrypt.hashSync("admin123", 10),
+        role: "admin"
+      },
+      {
+        id: "2",
+        username: "user",
+        password: bcrypt.hashSync("user123", 10),
+        role: "user"
+      }
+    ];
+    fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(defaultUsers, null, 2));
+    return defaultUsers;
+  }
+  
+  const usersData = fs.readFileSync(USERS_FILE_PATH, 'utf8');
+  return JSON.parse(usersData);
+}
+
+// Funcție pentru a salva utilizatorii în fișier
+function saveUsers(users) {
+  fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(users, null, 2));
+}
+
+// Verifică autentificarea pentru rutele protejate
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Token de autentificare lipsă' });
+  }
+  
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ success: false, message: 'Token invalid sau expirat' });
+    }
+    
+    req.user = user;
+    next();
+  });
+}
+
+// Verifică dacă utilizatorul este admin
+function isAdmin(req, res, next) {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Permisiune refuzată. Rolul de administrator este necesar.' });
+  }
+  
+  next();
+}
+
+// Endpoint pentru autentificare
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  
+  if (!username || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Numele de utilizator și parola sunt obligatorii' 
+    });
+  }
+  
+  const users = getUsers();
+  const user = users.find(u => u.username === username);
+  
+  if (!user) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Nume de utilizator sau parolă incorecte' 
+    });
+  }
+  
+  // Verificare folosind bcrypt sau comparație directă dacă avem parole nehash-uite
+  let passwordValid;
+  if (user.password.startsWith('$2')) {
+    // Parola este hash-uită cu bcrypt
+    passwordValid = bcrypt.compareSync(password, user.password);
+  } else {
+    // Parola este în plain text (pentru compatibilitate)
+    passwordValid = password === user.password;
+  }
+  
+  if (!passwordValid) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Nume de utilizator sau parolă incorecte' 
+    });
+  }
+  
+  // Verificăm dacă utilizatorul trebuie să-și schimbe parola
+  if (user.requirePasswordChange) {
+    // Generăm un token temporar pentru schimbarea parolei
+    const tempToken = crypto.randomBytes(20).toString('hex');
+    
+    // Actualizăm utilizatorul cu token-ul temporar
+    const updatedUsers = users.map(u => 
+      u.id === user.id ? { ...u, tempToken } : u
+    );
+    
+    saveUsers(updatedUsers);
+    
+    // Returnăm un răspuns special pentru schimbarea parolei
+    return res.json({
+      success: true,
+      requirePasswordChange: true,
+      tempToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role
+      }
+    });
+  }
+  
+  // Generăm token-ul JWT pentru autentificare
+  const token = jwt.sign(
+    { id: user.id, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+  
+  res.json({
+    success: true,
+    token,
+    user: {
+      id: user.id,
+      username: user.username,
+      role: user.role
+    }
+  });
+});
+
+// Endpoint pentru schimbare parolă temporară
+app.post('/api/change-temp-password', (req, res) => {
+  const { username, tempToken, newPassword } = req.body;
+  
+  if (!username || !tempToken || !newPassword) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Date incomplete pentru schimbarea parolei' 
+    });
+  }
+  
+  const users = getUsers();
+  const userIndex = users.findIndex(u => u.username === username && u.tempToken === tempToken);
+  
+  if (userIndex === -1) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Token temporar invalid sau expirat' 
+    });
+  }
+  
+  // Actualizăm parola utilizatorului
+  users[userIndex].password = bcrypt.hashSync(newPassword, 10);
+  users[userIndex].requirePasswordChange = false;
+  users[userIndex].tempToken = undefined; // Ștergem token-ul temporar
+  
+  saveUsers(users);
+  
+  // Generăm token-ul JWT pentru autentificare
+  const token = jwt.sign(
+    { id: users[userIndex].id, username: users[userIndex].username, role: users[userIndex].role },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+  
+  res.json({
+    success: true,
+    token,
+    message: 'Parola a fost schimbată cu succes'
+  });
+});
+
+// Endpoint pentru verificarea autentificării
+app.get('/api/verify-auth', authenticateToken, (req, res) => {
+  res.json({ valid: true, user: req.user });
+});
+
+// Endpoint pentru schimbarea parolei utilizatorului curent
+app.post('/api/change-password', authenticateToken, (req, res) => {
+  const { userId, oldPassword, newPassword } = req.body;
+  
+  if (userId !== req.user.id) {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Nu aveți permisiunea de a schimba parola altui utilizator' 
+    });
+  }
+  
+  const users = getUsers();
+  const user = users.find(u => u.id === userId);
+  
+  if (!user) {
+    return res.status(404).json({ 
+      success: false, 
+      message: 'Utilizatorul nu a fost găsit' 
+    });
+  }
+  
+  // Verificare folosind bcrypt sau comparație directă
+  let passwordValid;
+  if (user.password.startsWith('$2')) {
+    passwordValid = bcrypt.compareSync(oldPassword, user.password);
+  } else {
+    passwordValid = oldPassword === user.password;
+  }
+  
+  if (!passwordValid) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Parola actuală este incorectă' 
+    });
+  }
+  
+  // Actualizăm parola
+  const updatedUsers = users.map(u => 
+    u.id === userId ? { ...u, password: bcrypt.hashSync(newPassword, 10) } : u
+  );
+  
+  saveUsers(updatedUsers);
+  
+  res.json({
+    success: true,
+    message: 'Parola a fost schimbată cu succes'
+  });
+});
+
+// Endpoint pentru obținerea tuturor utilizatorilor (doar admin)
+app.get('/api/users', authenticateToken, isAdmin, (req, res) => {
+  const users = getUsers();
+  
+  // Returnăm utilizatorii fără parole
+  const sanitizedUsers = users.map(u => ({
+    id: u.id,
+    username: u.username,
+    role: u.role,
+    requirePasswordChange: !!u.requirePasswordChange
+  }));
+  
+  res.json({
+    success: true,
+    users: sanitizedUsers
+  });
+});
+
+// Endpoint pentru crearea unui utilizator nou (doar admin)
+app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
+  const { username, password, role, requirePasswordChange = false } = req.body;
+  
+  if (!username || !password || !role) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Nume de utilizator, parolă și rol sunt obligatorii' 
+    });
+  }
+  
+  const users = getUsers();
+  
+  // Verificăm dacă username-ul există deja
+  if (users.some(u => u.username === username)) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Numele de utilizator există deja' 
+    });
+  }
+  
+  // Generăm un ID nou
+  const newId = Math.max(...users.map(u => parseInt(u.id)), 0) + 1;
+  
+  // Creăm utilizatorul nou
+  const newUser = {
+    id: newId.toString(),
+    username,
+    password: bcrypt.hashSync(password, 10),
+    role,
+    requirePasswordChange
+  };
+  
+  // Adăugăm utilizatorul în lista
+  users.push(newUser);
+  saveUsers(users);
+  
+  res.json({
+    success: true,
+    message: 'Utilizatorul a fost creat cu succes',
+    user: {
+      id: newUser.id,
+      username: newUser.username,
+      role: newUser.role,
+      requirePasswordChange: newUser.requirePasswordChange
+    }
+  });
+});
+
+// Endpoint pentru ștergerea unui utilizator (doar admin)
+app.delete('/api/users/:id', authenticateToken, isAdmin, (req, res) => {
+  const userId = req.params.id;
+  
+  // Admin-ul nu își poate șterge propriul cont
+  if (userId === req.user.id) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Nu vă puteți șterge propriul cont' 
+    });
+  }
+  
+  const users = getUsers();
+  const filteredUsers = users.filter(u => u.id !== userId);
+  
+  // Verificăm dacă utilizatorul a fost găsit și șters
+  if (filteredUsers.length === users.length) {
+    return res.status(404).json({ 
+      success: false, 
+      message: 'Utilizatorul nu a fost găsit' 
+    });
+  }
+  
+  saveUsers(filteredUsers);
+  
+  res.json({
+    success: true,
+    message: 'Utilizatorul a fost șters cu succes'
+  });
+});
+
+// Endpoint pentru resetarea parolei unui utilizator (doar admin)
+app.post('/api/users/:id/reset-password', authenticateToken, isAdmin, (req, res) => {
+  const userId = req.params.id;
+  
+  const users = getUsers();
+  const userIndex = users.findIndex(u => u.id === userId);
+  
+  if (userIndex === -1) {
+    return res.status(404).json({ 
+      success: false, 
+      message: 'Utilizatorul nu a fost găsit' 
+    });
+  }
+  
+  // Generăm o parolă temporară
+  const temporaryPassword = crypto.randomBytes(4).toString('hex');
+  
+  // Actualizăm utilizatorul cu parola temporară
+  users[userIndex].password = bcrypt.hashSync(temporaryPassword, 10);
+  users[userIndex].requirePasswordChange = true;
+  
+  saveUsers(users);
+  
+  res.json({
+    success: true,
+    message: 'Parola a fost resetată cu succes',
+    temporaryPassword
+  });
+});
+
+// Endpoint pentru schimbarea parolei unui utilizator de către admin
+app.post('/api/users/:id/change-password', authenticateToken, isAdmin, (req, res) => {
+  const userId = req.params.id;
+  const { newPassword, requirePasswordChange = false } = req.body;
+  
+  if (!newPassword) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Parola nouă este obligatorie' 
+    });
+  }
+  
+  const users = getUsers();
+  const userIndex = users.findIndex(u => u.id === userId);
+  
+  if (userIndex === -1) {
+    return res.status(404).json({ 
+      success: false, 
+      message: 'Utilizatorul nu a fost găsit' 
+    });
+  }
+  
+  // Actualizăm parola utilizatorului
+  users[userIndex].password = bcrypt.hashSync(newPassword, 10);
+  users[userIndex].requirePasswordChange = requirePasswordChange;
+  
+  saveUsers(users);
+  
+  res.json({
+    success: true,
+    message: 'Parola a fost schimbată cu succes'
+  });
+});
 
 // Endpoint pentru testarea conexiunii SSH
 app.post('/api/test-connection', (req, res) => {

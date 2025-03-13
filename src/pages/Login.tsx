@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -16,20 +17,77 @@ const Login = () => {
   const [loginError, setLoginError] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-
+  
+  // State for password change dialog
+  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [tempToken, setTempToken] = useState("");
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setLoginError(false);
     
-    const success = login(username, password);
+    const loginResult = login(username, password);
     
     setIsSubmitting(false);
-    if (success) {
-      navigate("/");
+    if (loginResult.success) {
+      if (loginResult.requirePasswordChange) {
+        // Show password change dialog if user needs to change password
+        setTempToken(loginResult.tempToken || "");
+        setShowChangePasswordDialog(true);
+      } else {
+        navigate("/");
+      }
     } else {
       setLoginError(true);
     }
+  };
+  
+  const handlePasswordChange = () => {
+    if (newPassword.length < 6) {
+      setPasswordError("Parola trebuie să aibă cel puțin 6 caractere.");
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Parolele nu coincid.");
+      return;
+    }
+    
+    // Call API to change password
+    fetch(`${import.meta.env.VITE_API_URL || '/api'}/change-temp-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        username, 
+        tempToken, 
+        newPassword 
+      }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        setShowChangePasswordDialog(false);
+        // Re-login with new password
+        const loginResult = login(username, newPassword);
+        if (loginResult.success) {
+          navigate("/");
+        } else {
+          setLoginError(true);
+        }
+      } else {
+        setPasswordError(data.message || "Eroare la schimbarea parolei.");
+      }
+    })
+    .catch(error => {
+      console.error("Error changing password:", error);
+      setPasswordError("Eroare la conexiunea cu serverul.");
+    });
   };
 
   return (
@@ -47,8 +105,7 @@ const Login = () => {
               <Alert variant="destructive" className="py-2">
                 <ExclamationTriangleIcon className="h-4 w-4" />
                 <AlertDescription>
-                  Autentificare eșuată. Aplicația utilizează localStorage pentru stocarea utilizatorilor. 
-                  Credențialele implicite sunt: admin/admin123
+                  Autentificare eșuată. Verificați datele de autentificare și încercați din nou.
                 </AlertDescription>
               </Alert>
             )}
@@ -84,9 +141,50 @@ const Login = () => {
           </form>
         </CardContent>
         <CardFooter className="flex justify-center text-sm text-muted-foreground">
-          {/* Demo user information removed */}
+          {/* No demo user information */}
         </CardFooter>
       </Card>
+      
+      {/* Password Change Dialog */}
+      <Dialog open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schimbare parolă obligatorie</DialogTitle>
+            <DialogDescription>
+              Trebuie să schimbați parola temporară pentru a continua.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {passwordError && (
+              <Alert variant="destructive" className="py-2">
+                <ExclamationTriangleIcon className="h-4 w-4" />
+                <AlertDescription>{passwordError}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Parolă nouă</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmă parola</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handlePasswordChange}>Schimbă parola</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

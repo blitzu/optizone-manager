@@ -40,6 +40,8 @@ export interface User {
   username: string;
   password: string; // În producție, niciodată nu stocăm parole în plaintext
   role: UserRole;
+  requirePasswordChange?: boolean;
+  tempToken?: string;
 }
 
 export interface AuthState {
