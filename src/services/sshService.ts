@@ -41,18 +41,9 @@ export const sshService = {
    */
   executeCommand: async (request: SSHCommandRequest): Promise<{ success: boolean; output: string }> => {
     try {
-      // Pentru comenzile sudo, adăugăm parola SSH automat dacă este furnizată
-      let command = request.command;
-      
-      if (command.startsWith('sudo ') && request.sshPassword) {
-        // Folosim opțiunea -S pentru a furniza parola pentru sudo
-        command = command.replace('sudo ', `echo "${request.sshPassword}" | sudo -S `);
-      }
-      
-      const response = await axios.post(`${API_URL}/execute-command`, {
-        ...request,
-        command
-      });
+      // Nu mai modificăm comanda aici, trimitem datele așa cum sunt
+      // și lăsăm server-ul să gestioneze cazul cu sudo
+      const response = await axios.post(`${API_URL}/execute-command`, request);
       
       return response.data;
     } catch (error) {

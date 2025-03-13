@@ -1,4 +1,3 @@
-
 /**
  * Server API Express pentru Optizone Fleet Manager
  * 
@@ -74,11 +73,19 @@ app.post('/api/execute-command', (req, res) => {
   
   const conn = new Client();
   let commandOutput = '';
+  let finalCommand = command;
+  
+  // Verificăm dacă comanda este de tip sudo și modificăm comanda pentru a utiliza parola SSH
+  if (command.startsWith('sudo ') && sshPassword) {
+    // Folosim echo pentru a trimite parola la stdin pentru comanda sudo
+    finalCommand = `echo "${sshPassword}" | sudo -S ${command.substring(5)}`;
+    console.log(`Comando sudo detectată și modificată pentru execuție automată cu parolă`);
+  }
   
   conn.on('ready', () => {
     console.log(`Conexiune SSH stabilită pentru executarea comenzii la ${ip}`);
     
-    conn.exec(command, (err, stream) => {
+    conn.exec(finalCommand, (err, stream) => {
       if (err) {
         conn.end();
         return res.status(500).json({ 
@@ -220,7 +227,7 @@ app.post('/api/logs', (req, res) => {
   });
 });
 
-// Funcție pentru a procesa log-urile brute în format structurat
+// Funcție pentru a procesa log-urile brute în format structurat cu îmbunătățiri pentru formatarea MobaXterm
 function processRawLogs(rawLogs) {
   const logs = [];
   
@@ -265,7 +272,7 @@ function processRawLogs(rawLogs) {
             level: level,
             message: message,
             syslogIdentifier: component,
-            originalLine: trimmedLine // Păstrăm linia originală pentru debugging
+            originalLine: trimmedLine // Păstrăm linia originală pentru debugging și formatare
           });
           continue;
         }
@@ -280,12 +287,15 @@ function processRawLogs(rawLogs) {
           const pid = match[4];
           message = match[5];
           
-          // Determinare nivel de log bazat pe conținut
-          if (message.includes('error') || message.includes('fail') || message.includes('invalid')) {
+          // Îmbunătățit - determinăm nivelul de log pentru MobaXterm
+          if (message.includes('ERROR') || message.includes('Error') || message.includes('error') || 
+              message.includes('fail') || message.includes('FAIL') || message.includes('exception') ||
+              message.includes('CRITICAL')) {
             level = 'error';
-          } else if (message.includes('warning') || message.includes('warn')) {
+          } else if (message.includes('WARNING') || message.includes('Warning') || message.includes('warning') || 
+                    message.includes('warn')) {
             level = 'warning';
-          } else if (message.includes('debug')) {
+          } else if (message.includes('DEBUG') || message.includes('Debug') || message.includes('debug')) {
             level = 'debug';
           } else {
             level = 'info';
@@ -296,7 +306,7 @@ function processRawLogs(rawLogs) {
             level: level,
             message: message,
             syslogIdentifier: `${component}[${pid}]`,
-            originalLine: trimmedLine // Păstrăm linia originală pentru debugging
+            originalLine: trimmedLine // Păstrăm linia originală pentru debugging și formatare
           });
           continue;
         }
@@ -309,8 +319,9 @@ function processRawLogs(rawLogs) {
           message = match[2];
           timestamp = new Date().toISOString();
           
-          // Determinare nivel de log bazat pe componenta
-          if (component.includes('ERROR') || component.includes('FATAL')) {
+          // Determinare nivel de log bazat pe componenta - mai precis pentru MobaXterm
+          if (component.includes('ERROR') || component.includes('FATAL') || 
+              (component.includes('MAIN') && message.includes('ERROR'))) {
             level = 'error';
           } else if (component.includes('WARN')) {
             level = 'warning';
@@ -331,7 +342,7 @@ function processRawLogs(rawLogs) {
         }
       }
       
-      // Dacă nu am putut identifica formatul, folosim un format implicit
+      // Dacă nu am putut identifica formatul, folosim detectarea îmbunătățită 
       logs.push({
         timestamp: new Date().toISOString(),
         level: determineLogLevel(trimmedLine),
@@ -355,20 +366,24 @@ function processRawLogs(rawLogs) {
   return logs;
 }
 
-// Funcție pentru a determina nivelul de log pe baza conținutului
+// Funcție îmbunătățită pentru a determina nivelul de log pe baza conținutului
 function determineLogLevel(logLine) {
-  logLine = logLine.toLowerCase();
+  const originalLine = logLine.toLowerCase();
   
-  if (logLine.includes('error') || logLine.includes('fail') || logLine.includes('fatal') || 
-      logLine.startsWith('[ee]') || logLine.includes('exception')) {
+  // Pentru a matcha mai bine stilul de afișare al MobaXterm
+  if (originalLine.includes('error') || originalLine.includes('fail') || originalLine.includes('fatal') || 
+      originalLine.startsWith('[ee]') || originalLine.includes('exception') || 
+      originalLine.includes('critical') || originalLine.includes('unable to') ||
+      originalLine.includes('not found') && originalLine.includes('error')) {
     return 'error';
   }
   
-  if (logLine.includes('warn') || logLine.includes('warning')) {
+  if (originalLine.includes('warn') || originalLine.includes('warning')) {
     return 'warning';
   }
   
-  if (logLine.includes('debug') || logLine.includes('trace')) {
+  if (originalLine.includes('debug') || originalLine.includes('trace') || 
+     (originalLine.includes('checking') && !originalLine.includes('error'))) {
     return 'debug';
   }
   

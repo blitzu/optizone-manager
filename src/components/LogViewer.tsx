@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   AlertCircle, 
   Download, 
@@ -44,13 +43,18 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     
     // Color mapping similar to MobaXterm
     if (component.includes("DCT:VIST")) return "text-cyan-300";
-    if (component.includes("BP")) return "#f0ad4e"; // yellow-orange
+    if (component.includes("BP")) return "text-amber-400"; // yellow-orange
     if (component.includes("MAIN")) return "text-green-400";
     if (component.includes("MQ")) return "text-purple-400";
     if (component.includes("LPR")) return "text-cyan-400";
     if (component.includes("CAP")) return "text-sky-400";
     if (component.includes("admin_pipeline")) return "text-pink-400";
-    if (component.includes("sh")) return "text-gray-400";
+    if (component.includes("docker")) return "text-sky-500";
+    if (component.includes("systemd")) return "text-green-500";
+    if (component.includes("sh")) return "text-teal-400";
+    if (component.includes("TH_YF8S") || component.includes("TH_LPD_R")) return "text-fuchsia-400";
+    if (component.includes("EPM") || component.includes("SYSMON")) return "text-emerald-400";
+    if (component.includes("BC")) return "text-amber-500";
     
     // Default color for unknown components
     return "text-gray-300";
@@ -71,8 +75,16 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     if (value === "True") return "text-green-400";
     if (value === "False") return "text-red-400";
     if (value === "None") return "text-gray-500";
+    if (value === "0") return "text-blue-300";
     if (value.includes("/")) return "text-yellow-400"; // For fractions like 10/10
     if (!isNaN(Number(value))) return "text-blue-400"; // For numbers
+    
+    // Detect hex color codes
+    if (value.match(/^#[0-9a-f]{6}$/i)) return "text-purple-400";
+    
+    // Colorize process info
+    if (value.match(/^\d+\s*$/)) return "text-cyan-400"; // PID numbers
+    
     return "text-white"; // Default
   };
 
@@ -81,7 +93,8 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     return message.includes("TRACK_ID") || 
            message.includes("Status") || 
            message.includes("Name") ||
-           (message.includes("--") && message.includes("--"));
+           (message.includes("--") && message.includes("--")) ||
+           message.match(/^##+$/) !== null; // Detect header separator lines
   };
 
   // Function for checking if a line is part of a table
@@ -90,7 +103,15 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     return message.match(/\s{2,}/) !== null || 
            message.match(/\t/) !== null || 
            message.includes("live") ||
-           message.match(/^\d+\s+[A-Z0-9]+\s+\d{4}-\d{2}-\d{2}/) !== null;
+           message.match(/^\d+\s+[A-Za-z0-9-]+\s+/) !== null;
+  };
+
+  // Function to detect special formatting sections like ASCII art banners
+  const isSpecialFormatting = (message: string): boolean => {
+    return message.includes("####") || 
+           message.match(/===+/) !== null || 
+           message.includes("IMPORTANT") ||
+           message.match(/^#+\s.*\s+#+$/) !== null;
   };
 
   const fetchLogData = async () => {
@@ -373,25 +394,58 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     const message = log.message;
     const syslogIdentifier = log.syslogIdentifier || "system";
     
-    // Check for special formatting cases
+    // Handle special formatting cases
+    
+    // Case 1: MobaXterm EE logs with red color
     if (log.originalLine && log.originalLine.startsWith('[EE]')) {
-      // Format EE logs like in MobaXterm (errors in red)
       return (
         <div key={index} className="mb-1 font-mono text-red-500">
           {log.originalLine}
         </div>
       );
-    } 
-    else if (isTableHeader(message)) {
-      // Format table headers differently
+    }
+    
+    // Case 2: ASCII banner formatting with different colors
+    if (isSpecialFormatting(message)) {
+      // Check if this is a section separator with hash marks
+      if (message.includes('####')) {
+        return (
+          <div key={index} className="mb-1 font-mono text-green-400">
+            {message}
+          </div>
+        );
+      }
+      
+      // Check if this is an IMPORTANT message
+      if (message.includes('IMPORTANT')) {
+        return (
+          <div key={index} className="mb-1 font-mono text-amber-400 font-bold">
+            {message}
+          </div>
+        );
+      }
+      
+      // Check if this is a section separator with equal signs
+      if (message.match(/===+/)) {
+        return (
+          <div key={index} className="mb-1 font-mono text-blue-400">
+            {message}
+          </div>
+        );
+      }
+    }
+    
+    // Case 3: Table headers
+    if (isTableHeader(message)) {
       return (
         <div key={index} className="mb-1 font-mono text-yellow-400 font-bold">
           {message}
         </div>
       );
     }
-    else if (isTableRow(message)) {
-      // Try to format tabular data
+    
+    // Case 4: Table rows with column alignment
+    if (isTableRow(message)) {
       try {
         // Split by multiple spaces or tabs
         const parts = message.split(/\s{2,}|\t/).filter(part => part.trim() !== '');
@@ -416,7 +470,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       }
     }
     
-    // Default format with MobaXterm coloring for regular logs
+    // Default MobaXterm-style formatting for regular logs
     return (
       <div key={index} className={`mb-1 font-mono ${getLevelColor(log.level)}`}>
         {log.timestamp ? (
@@ -486,6 +540,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
               ref={logContainerRef}
               onScroll={handleScroll}
               className="border-0 h-[70vh] overflow-auto bg-black text-white p-4 font-mono text-sm w-full"
+              style={{ fontFamily: 'Consolas, Monaco, "Andale Mono", monospace' }}
             >
               {loading ? (
                 <div className="flex justify-center items-center h-full">
@@ -524,6 +579,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
               <div 
                 ref={terminalOutputRef}
                 className="flex-1 p-4 overflow-auto"
+                style={{ fontFamily: 'Consolas, Monaco, "Andale Mono", monospace' }}
               >
                 <div className="text-green-400 mb-4">
                   Conectat la {machine.hostname} ({machine.ip}) ca {machine.sshUsername}
