@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -39,10 +40,104 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const terminalOutputRef = useRef<HTMLDivElement>(null);
 
   const getTextColor = (text: string): string => {
+    // Error/Failure (Red)
+    if (
+      text.includes("ERROR") || text.includes("FAIL") || text.includes("FAILED") || 
+      text.includes("FAILURE") || text.includes("CRITICAL") || text.includes("FATAL") || 
+      text.includes("PANIC") || text.includes("NO") || text.includes("FALSE") || 
+      text.includes("DISABLED") || text.includes("INACTIVE") || text.includes("OFFLINE") || 
+      text.includes("DISCONNECTED") || text.includes("DOWN") || text.includes("DENIED") || 
+      text.includes("UNAUTHORIZED") || text.includes("TIMEOUT") || text.includes("TIMEOUTS") || 
+      text.includes("LATENCY") || text.includes("RESET") || text.includes("ABORTED") || 
+      text.includes("INTERRUPTED") || text.includes("DELETE") || text.includes("DELETED") || 
+      text.includes("REMOVED") || text.includes("BLOCKED") || text.includes("REJECTED") || 
+      text.includes("REFUSED") || text.includes("LOW") || text.includes("STOPPED") || 
+      text.includes("UNLOADED")
+    ) {
+      return "text-mobaxterm-red";
+    }
+    
+    // Warning/Notification (Yellow)
+    if (
+      text.includes("WARNING") || text.includes("CAUTION") || text.includes("ALERT") || 
+      text.includes("NOTICE") || text.includes("DEPRECATED") || text.includes("UNSTABLE") || 
+      text.includes("OVERLOAD") || text.includes("LIMIT") || text.includes("HIGH")
+    ) {
+      return "text-mobaxterm-yellow";
+    }
+    
+    // Success/Positive Status (Green)
+    if (
+      text.includes("SUCCESS") || text.includes("PASSED") || text.includes("COMPLETED") || 
+      text.includes("OK") || text.includes("DONE") || text.includes("READY") || 
+      text.includes("INSTALLED") || text.includes("YES") || text.includes("TRUE") || 
+      text.includes("ENABLED") || text.includes("ACTIVE") || text.includes("ONLINE") || 
+      text.includes("CONNECTED") || text.includes("UP") || text.includes("AUTHORIZED") || 
+      text.includes("AUTHENTICATED") || text.includes("CREATE") || text.includes("CREATED") || 
+      text.includes("OPENED") || text.includes("LOADED") || text.includes("RUNNING") || 
+      text.includes("NORMAL")
+    ) {
+      return "text-mobaxterm-green";
+    }
+    
+    // General Information (Blue)
+    if (
+      text.includes("INFO") || text.includes("STATUS") || text.includes("DETAIL") || 
+      text.includes("REQUEST") || text.includes("RESPONSE") || text.includes("QUERY") || 
+      text.includes("SENT") || text.includes("RECEIVED") || text.includes("[INFO]")
+    ) {
+      return "text-mobaxterm-blue";
+    }
+    
+    // Debugging Information (Magenta)
+    if (
+      text.includes("DEBUG") || text.includes("TRACE") || text.includes("VERBOSE") || 
+      text.includes("IP") || text.includes("IPv4") || text.includes("IPv6") || 
+      text.includes("ADDRESS") || text.includes("HOST") || text.includes("URL") || 
+      text.includes("DOMAIN") || text.includes("DNS") || text.includes("PORT") || 
+      text.includes("HTTP") || text.includes("HTTPS") || text.includes("SSH") || 
+      text.includes("FTP") || text.includes("[DEBUG]")
+    ) {
+      return "text-mobaxterm-magenta";
+    }
+    
+    // Authentication (BoldCyan)
+    if (
+      text.includes("LOGIN") || text.includes("LOGOUT") || text.includes("PASSWORD") || 
+      text.includes("USERNAME") || text.includes("USER") || text.includes("DATE") || 
+      text.includes("TIME") || text.includes("TIMESTAMP") || text.includes("START") || 
+      text.includes("END") || text.includes("DURATION") || text.includes("MEMORY") || 
+      text.includes("CPU") || text.includes("DISK") || text.includes("NETWORK")
+    ) {
+      return "text-mobaxterm-brightCyan";
+    }
+    
+    // Commands/File Operations/Quantities/Resources (BoldWhite)
+    if (
+      text.includes("EXECUTE") || text.includes("RUN") || text.includes("CMD") || 
+      text.includes("COMMAND") || text.includes("READ") || text.includes("WRITE") || 
+      text.includes("SAVED") || text.includes("UPDATED") || text.includes("COUNT") || 
+      text.includes("TOTAL") || text.includes("SIZE") || text.includes("AMOUNT") || 
+      text.includes("PERCENT") || text.includes("PERCENTAGE") || text.includes("GB") || 
+      text.includes("MB") || text.includes("KB") || text.includes("BYTES") || 
+      text.includes("AVAILABLE") || text.includes("USED") || text.includes("FREE")
+    ) {
+      return "text-mobaxterm-brightWhite";
+    }
+    
+    // Waiting State (BoldYellow - neutru)
+    if (
+      text.includes("PROCESSING") || text.includes("WAITING") || text.includes("IDLE")
+    ) {
+      return "text-mobaxterm-brightYellow";
+    }
+    
+    // Legacy color determination for backward compatibility
     if (text.includes("[EE]")) return "text-mobaxterm-red";
     if (text.includes("[WARNING]")) return "text-mobaxterm-yellow";
-    if (text.includes("[DEBUG]")) return "text-mobaxterm-blue";
-    if (text.includes("[INFO]")) return "text-mobaxterm-green";
+    if (text.includes("[DEBUG]")) return "text-mobaxterm-magenta";
+    if (text.includes("[INFO]")) return "text-mobaxterm-blue";
+    
     return "text-mobaxterm-white";
   };
 
@@ -323,7 +418,8 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   }, [machine.id]);
 
   const renderRawLogLine = (log: LogEntry, index: number) => {
-    const logText = log.originalLine || `[${formatDateTime(log.timestamp)}] [${log.level.toUpperCase()}] ${log.message}`;
+    // Display the raw log line exactly as received, without any modifications
+    const logText = log.originalLine || log.message;
     const textColor = getTextColor(logText);
     
     return (
