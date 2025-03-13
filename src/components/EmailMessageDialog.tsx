@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Copy, CheckCircle } from "lucide-react";
+import { Copy, CheckCircle, Clipboard, ClipboardCheck } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -57,15 +57,33 @@ ${requirePasswordChange ? "La prima autentificare va trebui să-ți schimbi paro
 Cu stimă,
 `.trim();
 
-  const copyToClipboard = async () => {
+  const copyToClipboard = () => {
     try {
-      await navigator.clipboard.writeText(emailMessage);
-      setCopied(true);
-      toast({
-        title: "Mesaj copiat",
-        description: "Mesajul a fost copiat în clipboard",
-      });
-      setTimeout(() => setCopied(false), 2000);
+      // Create a temporary textarea element to handle copy
+      const textArea = document.createElement('textarea');
+      textArea.value = emailMessage;
+      
+      // Make it invisible but part of the document
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      
+      // Select and copy
+      textArea.select();
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        setCopied(true);
+        toast({
+          title: "Mesaj copiat",
+          description: "Mesajul a fost copiat în clipboard",
+          variant: "default",
+        });
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        throw new Error("Operația de copiere a eșuat");
+      }
     } catch (err) {
       console.error('Failed to copy text: ', err);
       toast({
@@ -107,12 +125,12 @@ Cu stimă,
           <Button type="button" onClick={copyToClipboard}>
             {copied ? (
               <>
-                <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                <ClipboardCheck className="h-4 w-4 mr-2 text-green-500" />
                 Copiat
               </>
             ) : (
               <>
-                <Copy className="h-4 w-4 mr-2" />
+                <Clipboard className="h-4 w-4 mr-2" />
                 Copiază mesajul
               </>
             )}
