@@ -26,19 +26,21 @@ console.log("QueryClient inițializat");
 const App = () => {
   console.log("Randare App...");
   
+  // Pregătim mesajele de log în afara returnului
+  console.log("Randare QueryClientProvider");
+  console.log("Randare AuthProvider");
+  console.log("Randare TooltipProvider");
+  console.log("Randare BrowserRouter");
+  console.log("Randare Routes");
+  
   return (
     <QueryClientProvider client={queryClient}>
-      {console.log("Randare QueryClientProvider")}
       <AuthProvider>
-        {console.log("Randare AuthProvider")}
         <TooltipProvider>
-          {console.log("Randare TooltipProvider")}
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            {console.log("Randare BrowserRouter")}
             <Routes>
-              {console.log("Randare Routes")}
               <Route path="/login" element={<Login />} />
               <Route 
                 path="/" 

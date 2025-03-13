@@ -1,7 +1,8 @@
 
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
 
 console.log("Inițializare aplicație...");
 
@@ -12,7 +13,11 @@ if (rootElement) {
   try {
     console.log("Se încearcă randarea aplicației...");
     const root = createRoot(rootElement);
-    root.render(<App />);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
     console.log("Aplicația a fost randată cu succes!");
   } catch (error) {
     console.error("Eroare la randarea aplicației:", error);
