@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from "react";
 import axios from "axios";
 import { toast } from "@/components/ui/use-toast";
@@ -89,20 +88,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token?: string;
   }> => {
     try {
-      // Include client IP information if available
       const clientIp = await fetch('https://api.ipify.org?format=json')
         .then(response => response.json())
         .then(data => data.ip)
         .catch(() => 'unknown');
       
-      // Send the login request with IP information
+      console.log("Sending login request with IP:", clientIp);
+      
       const response = await axios.post("/api/login", { 
         username, 
         password,
         ipAddress: clientIp
       });
 
+      console.log("Login response:", response.data);
+
       if (response.data.success) {
+        console.log("User data from login:", response.data.user);
+        
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
         
@@ -281,7 +284,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       });
 
+      console.log("getAllUsers response:", response.data);
+
       if (response.data.success) {
+        console.log("Users data:", response.data.users);
         return response.data.users;
       } else {
         toast({

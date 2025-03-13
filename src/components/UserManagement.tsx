@@ -20,7 +20,8 @@ import {
   UserCog,
   Shield,
   Clock,
-  Globe
+  Globe,
+  Info
 } from "lucide-react";
 import {
   AlertDialog,
@@ -84,6 +85,7 @@ const UserManagement = () => {
     setLoading(true);
     try {
       const loadedUsers = await getAllUsers();
+      console.log("Loaded users with login info:", loadedUsers);
       setUsers(loadedUsers);
     } catch (error) {
       console.error("Error loading users:", error);
@@ -283,13 +285,18 @@ const UserManagement = () => {
 
   const formatLastLogin = (date: string | undefined) => {
     if (!date) return "Niciodată";
-    return new Date(date).toLocaleString('ro-RO', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      return new Date(date).toLocaleString('ro-RO', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error, "Date value:", date);
+      return "Format invalid";
+    }
   };
 
   const isSuperUser = (userId: string) => userId === "1";
@@ -403,7 +410,8 @@ const UserManagement = () => {
                         {user.role === 'admin' ? 'Administrator' : 'Utilizator'}
                         {isSuperUser(user.id) && ' (REALIZATORUL APLICAȚIEI)'}
                       </p>
-                      {user.lastLogin && (
+                      
+                      {user.lastLogin ? (
                         <div className="flex items-center space-x-3 mt-1 text-xs text-gray-500">
                           <div className="flex items-center">
                             <Clock className="h-3 w-3 mr-1" />
@@ -421,9 +429,15 @@ const UserManagement = () => {
                             </Tooltip>
                           </TooltipProvider>
                         </div>
+                      ) : (
+                        <div className="flex items-center mt-1 text-xs text-gray-500">
+                          <Info className="h-3 w-3 mr-1" />
+                          <span>Fără informații de login</span>
+                        </div>
                       )}
                     </div>
                   </div>
+                  
                   <div className="flex items-center space-x-2">
                     <Button 
                       variant="outline" 
@@ -643,3 +657,4 @@ const UserManagement = () => {
 };
 
 export default UserManagement;
+

@@ -30,13 +30,25 @@ const Login = () => {
     }
 
     try {
+      console.log("Attempting login for user:", username);
       const result = await login(username, password);
+      
+      console.log("Login result:", result);
       
       if (result.success) {
         toast({
           title: "Autentificare reușită",
           description: `Bine ai venit, ${result.user?.username || username}!`
         });
+        
+        // Show lastLogin info in toast if available
+        if (result.user?.lastLogin) {
+          const lastLoginDate = new Date(result.user.lastLogin.date).toLocaleString('ro-RO');
+          toast({
+            title: "Informații de autentificare",
+            description: `Ultima autentificare: ${lastLoginDate}`,
+          });
+        }
       } else {
         // Error message is shown by the login function via toast
         console.error(result.message);
