@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -430,24 +429,19 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
     };
   }, [machine.id]);
 
-  // Updated function to sanitize and format log lines for better human readability
   const renderRawLogLine = (log: LogEntry, index: number) => {
-    // Get the log content, prioritizing the original line if available
     let logText = log.originalLine || log.message;
     
-    // Sanitize control characters and make logs more human-readable
-    // Replace common control characters and non-printable characters
     logText = logText
-      // Replace ASCII control characters (0-31) except newlines and tabs
+      .replace(/\u001b\[\d+(;\d+)*m/g, '')
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-      // Replace common terminal escape sequences
       .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
-      // Replace other common problematic sequences
       .replace(/\x1b\][0-9];.*?\x07/g, '')
-      // Replace null characters
       .replace(/\x00/g, '')
-      // Clean up consecutive spaces (more than 2) for better readability
-      .replace(/\s{3,}/g, '  ');
+      .replace(/\s{3,}/g, '  ')
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .replace(/[\u2500-\u257F]/g, '')
+      .replace(/[^\x20-\x7E\t\r\n]/g, '');
     
     const textColor = getTextColor(logText);
     
@@ -456,11 +450,11 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
         key={index} 
         className={`mb-1 font-mono ${textColor}`}
         style={{ 
-          whiteSpace: 'pre-wrap', // Changed from 'pre' to 'pre-wrap' for better line wrapping
+          whiteSpace: 'pre-wrap',
           fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
           fontSize: '14px',
           lineHeight: '1.4',
-          wordBreak: 'break-word' // Added to prevent horizontal scrolling on long lines
+          wordBreak: 'break-word'
         }}
       >
         {logText}
@@ -576,7 +570,7 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
                   {logs.map((log, index) => renderRawLogLine(log, index))}
                   {loading && (
                     <div className="flex justify-center my-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-mobaxterm-foreground"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-mobaxterm-foreground"></div>
                     </div>
                   )}
                 </div>
