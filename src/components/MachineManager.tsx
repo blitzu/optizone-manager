@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Edit, Trash2, Server } from "lucide-react";
+import { Edit, Trash2, Server, Terminal } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 interface MachineManagerProps {
@@ -25,14 +25,18 @@ const MachineManager = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentMachine, setCurrentMachine] = useState<Partial<Machine>>({
     ip: "",
-    hostname: ""
+    hostname: "",
+    sshUsername: "gts",
+    sshPassword: "1qaz2wsx"
   });
   const [isEditing, setIsEditing] = useState(false);
 
   const resetForm = () => {
     setCurrentMachine({
       ip: "",
-      hostname: ""
+      hostname: "",
+      sshUsername: "gts",
+      sshPassword: "1qaz2wsx"
     });
     setIsEditing(false);
   };
@@ -43,7 +47,12 @@ const MachineManager = ({
   };
 
   const openEditDialog = (machine: Machine) => {
-    setCurrentMachine({ ...machine });
+    setCurrentMachine({ 
+      ...machine,
+      // Dacă mașina nu are credențiale SSH, setăm valorile implicite
+      sshUsername: machine.sshUsername || "gts",
+      sshPassword: machine.sshPassword || "1qaz2wsx"
+    });
     setIsEditing(true);
     setDialogOpen(true);
   };
@@ -110,6 +119,21 @@ const MachineManager = ({
     setSelectedMachine(selectedMachine?.id === machine.id ? null : machine);
   };
 
+  const connectSSH = (machine: Machine) => {
+    toast({
+      title: "Conectare SSH",
+      description: `Se conectează la ${machine.hostname} (${machine.ip}) cu utilizatorul ${machine.sshUsername || "gts"}...`,
+    });
+    
+    // În aplicația reală, aici s-ar face conectarea SSH
+    setTimeout(() => {
+      toast({
+        title: "Informație",
+        description: "Implementarea reală a conectării SSH ar trebui făcută pe partea de server. Această funcționalitate este doar pentru demonstrație.",
+      });
+    }, 2000);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -143,6 +167,16 @@ const MachineManager = ({
                   <TableCell className="font-medium">{machine.hostname}</TableCell>
                   <TableCell>{machine.ip}</TableCell>
                   <TableCell className="text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        connectSSH(machine);
+                      }}
+                    >
+                      <Terminal className="h-4 w-4" />
+                    </Button>
                     <Button 
                       variant="ghost" 
                       size="icon" 
@@ -200,6 +234,23 @@ const MachineManager = ({
                 value={currentMachine.ip} 
                 onChange={e => setCurrentMachine({...currentMachine, ip: e.target.value})}
                 placeholder="ex: 192.168.1.100"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Utilizator SSH</label>
+              <Input 
+                value={currentMachine.sshUsername} 
+                onChange={e => setCurrentMachine({...currentMachine, sshUsername: e.target.value})}
+                placeholder="Utilizator SSH"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Parolă SSH</label>
+              <Input 
+                type="password"
+                value={currentMachine.sshPassword} 
+                onChange={e => setCurrentMachine({...currentMachine, sshPassword: e.target.value})}
+                placeholder="Parolă SSH"
               />
             </div>
           </div>

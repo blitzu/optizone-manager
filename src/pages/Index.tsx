@@ -1,8 +1,8 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LogOut, User } from "lucide-react";
+import { LogOut } from "lucide-react";
 import MachineManager from "@/components/MachineManager";
 import LogViewer from "@/components/LogViewer";
 import UserSettings from "@/components/UserSettings";
@@ -16,10 +16,30 @@ const Index = () => {
 
   const [machines, setMachines] = useState<Machine[]>(() => {
     const saved = localStorage.getItem("optizone-machines");
-    return saved ? JSON.parse(saved) : [];
+    const parsedMachines = saved ? JSON.parse(saved) : [];
+    
+    // Asigură-te că toate mașinile au credențialele SSH implicite setate
+    return parsedMachines.map((machine: Machine) => ({
+      ...machine,
+      sshUsername: machine.sshUsername || "gts",
+      sshPassword: machine.sshPassword || "1qaz2wsx"
+    }));
   });
 
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
+
+  // Actualizăm mașinile existente la prima încărcare pentru a avea credențialele SSH implicite
+  useEffect(() => {
+    if (machines.length > 0) {
+      const updatedMachines = machines.map(machine => ({
+        ...machine,
+        sshUsername: machine.sshUsername || "gts",
+        sshPassword: machine.sshPassword || "1qaz2wsx"
+      }));
+      
+      saveMachines(updatedMachines);
+    }
+  }, []);
 
   const saveMachines = (updatedMachines: Machine[]) => {
     setMachines(updatedMachines);

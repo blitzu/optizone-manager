@@ -3,6 +3,8 @@ export interface Machine {
   id: string;
   ip: string;
   hostname: string;
+  sshUsername?: string;
+  sshPassword?: string;
 }
 
 export interface LogRequest {
