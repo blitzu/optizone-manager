@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -199,6 +200,10 @@ const UserManagement = () => {
         setError("Parola trebuie să aibă cel puțin 6 caractere.");
         return;
       }
+      
+      console.log("Changing password for user:", userToManage.id);
+      console.log("New password:", finalPassword);
+      console.log("Require password change:", requirePasswordChange);
       
       const success = await changeUserPassword(userToManage.id, finalPassword, requirePasswordChange);
       

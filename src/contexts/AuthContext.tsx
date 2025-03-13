@@ -1,11 +1,9 @@
-
 import React, { createContext, useState, useContext, useEffect } from "react";
 import axios from "axios";
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate, useLocation } from "react-router-dom";
 import { User, UserRole } from "@/types";
 
-// Define the shape of our authentication context
 interface AuthContextType {
   isAuthenticated: boolean;
   currentUser: User | null;
@@ -28,7 +26,6 @@ interface AuthContextType {
   updateUserRole: (userId: string, role: UserRole) => Promise<boolean>;
 }
 
-// Create the context with default values
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   currentUser: null,
@@ -44,7 +41,6 @@ const AuthContext = createContext<AuthContextType>({
   updateUserRole: async () => false,
 });
 
-// AuthProvider component to wrap the app and provide the context
 interface AuthProviderProps {
   children: React.ReactNode;
 }
@@ -52,21 +48,36 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const user = localStorage.getItem("user");
+    const checkAuth = () => {
+      const token = localStorage.getItem("token");
+      const user = localStorage.getItem("user");
 
-    if (token && user) {
-      setIsAuthenticated(true);
-      setCurrentUser(JSON.parse(user));
+      if (token && user) {
+        setIsAuthenticated(true);
+        setCurrentUser(JSON.parse(user));
+      } else {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      }
+      setAuthChecked(true);
+    };
+
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     } else {
-      setIsAuthenticated(false);
-      setCurrentUser(null);
+      delete axios.defaults.headers.common["Authorization"];
     }
-  }, [location]);
+  }, [isAuthenticated]);
 
   const login = async (username: string, password: string): Promise<{
     success: boolean;
@@ -82,6 +93,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.data.success) {
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
+        
+        axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.token}`;
+        
         setIsAuthenticated(true);
         setCurrentUser(response.data.user);
         
@@ -90,7 +104,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (requirePasswordChange && tempToken) {
           navigate(`/change-password?tempToken=${tempToken}`);
         } else {
-          // Modificat pentru a corespunde cu rutele existente
           navigate("/");
         }
         
@@ -129,6 +142,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    delete axios.defaults.headers.common["Authorization"];
     setIsAuthenticated(false);
     setCurrentUser(null);
     navigate("/login");
@@ -141,6 +155,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.data.success) {
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
+        
+        axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.token}`;
+        
         setIsAuthenticated(true);
         setCurrentUser(response.data.user);
         navigate("/");
@@ -176,6 +193,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        toast({
+          title: "Succes",
+          description: "Parola a fost schimbată cu succes!",
+        });
+        return true;
+      } else {
+        toast({
+          title: "Eroare",
+          description: response.data.message || "Eroare la schimbarea parolei",
+          variant: "destructive",
+        });
+        return false;
+      }
+    } catch (error: any) {
+      console.error("Error changing password:", error);
+      toast({
+        title: "Eroare",
+        description: error.response?.data?.message || "Eroare la schimbarea parolei",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const changeUserPassword = async (userId: string, newPassword: string, requirePasswordChange: boolean = false): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem("token");
+      
+      const response = await axios.post(
+        `/api/users/${userId}/change-password`,
+        { newPassword, requirePasswordChange },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -341,43 +397,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const changeUserPassword = async (userId: string, newPassword: string, requirePasswordChange: boolean = false): Promise<boolean> => {
-    try {
-      const response = await axios.post(
-        `/api/users/${userId}/change-password`,
-        { newPassword, requirePasswordChange },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      if (response.data.success) {
-        toast({
-          title: "Succes",
-          description: "Parola a fost schimbată cu succes!",
-        });
-        return true;
-      } else {
-        toast({
-          title: "Eroare",
-          description: response.data.message || "Eroare la schimbarea parolei",
-          variant: "destructive",
-        });
-        return false;
-      }
-    } catch (error: any) {
-      console.error("Error changing password:", error);
-      toast({
-        title: "Eroare",
-        description: error.response?.data?.message || "Eroare la schimbarea parolei",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
   const updateUserRole = async (userId: string, role: UserRole): Promise<boolean> => {
     try {
       if (userId === "1") {
@@ -424,6 +443,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  if (!authChecked) {
+    return <div className="flex items-center justify-center min-h-screen">Se încarcă...</div>;
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -446,5 +469,4 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 };
 
-// Custom hook to use the auth context
 export const useAuth = () => useContext(AuthContext);
