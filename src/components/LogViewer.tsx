@@ -436,7 +436,7 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
           <div className="flex items-center gap-2">
             {onBackToList && (
               <Button 
-                variant="ghost" 
+                variant="outline" 
                 size="sm" 
                 onClick={onBackToList}
                 className="mr-2"

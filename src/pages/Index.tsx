@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,6 @@ const Index = () => {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
 
-  // Initialize machines from server - only once on component mount
   useEffect(() => {
     const fetchMachines = async () => {
       try {
@@ -102,18 +100,15 @@ const Index = () => {
     }
   };
 
-  // Handler for selecting a machine for regular users
   const handleSelectMachine = (machine: Machine) => {
     setSelectedMachine(machine);
     setActiveTab("logs");
   };
 
-  // Handler for going back to the machine list
   const handleBackToList = () => {
     setSelectedMachine(null);
   };
 
-  // Verificăm dacă suntem în modul de vizualizare log-uri pentru a afișa conținutul pe toată lățimea
   const [activeTab, setActiveTab] = useState<string>(isAdmin ? "machines" : "logs");
 
   return (
@@ -178,20 +173,10 @@ const Index = () => {
         <TabsContent value="logs" className={selectedMachine ? 'px-0' : 'px-6'}>
           {selectedMachine ? (
             <div className="space-y-4">
-              <div className="flex justify-between px-6">
-                {!isAdmin && (
-                  <Button 
-                    variant="outline"
-                    onClick={handleBackToList}
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Înapoi la lista de mașini
-                  </Button>
-                )}
+              <div className="flex justify-end px-6">
                 <Button 
                   variant="outline"
                   onClick={() => testSshConnection(selectedMachine)}
-                  className={!isAdmin ? "ml-auto" : ""}
                 >
                   Testează conexiunea SSH
                 </Button>
