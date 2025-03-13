@@ -1,203 +1,148 @@
 
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
+import { toast } from "@/components/ui/use-toast";
 
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-  
-  // State for password change dialog
-  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [tempToken, setTempToken] = useState("");
-  
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setLoginError(null);
-    
+    setLoading(true);
+
+    if (!username || !password) {
+      toast({
+        title: "Eroare",
+        description: "Vă rugăm să completați ambele câmpuri",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
-      const loginResult = await login(username, password);
+      const result = await login(username, password);
       
-      setIsSubmitting(false);
-      if (loginResult.success) {
-        if (loginResult.requirePasswordChange) {
-          // Show password change dialog if user needs to change password
-          setTempToken(loginResult.tempToken || "");
-          setShowChangePasswordDialog(true);
+      if (result.success) {
+        if (result.requirePasswordChange && result.tempToken) {
+          navigate(`/change-password?tempToken=${result.tempToken}`);
         } else {
-          navigate("/");
+          navigate("/machines");
         }
       } else {
-        setLoginError(loginResult.message || "Nume de utilizator sau parolă incorecte.");
+        // Error message is shown by the login function via toast
+        console.error(result.message);
       }
     } catch (error) {
-      setIsSubmitting(false);
-      setLoginError("Eroare la conectarea cu serverul. Încercați din nou mai târziu.");
       console.error("Login error:", error);
+      toast({
+        title: "Eroare",
+        description: "A apărut o eroare la autentificare",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
-  
-  const handlePasswordChange = () => {
-    if (newPassword.length < 6) {
-      setPasswordError("Parola trebuie să aibă cel puțin 6 caractere.");
+
+  const handleForgotPassword = async () => {
+    if (!username) {
+      toast({
+        title: "Introduceți numele de utilizator",
+        description: "Pentru a reseta parola, introduceți numele de utilizator",
+        variant: "destructive",
+      });
       return;
     }
-    
-    if (newPassword !== confirmPassword) {
-      setPasswordError("Parolele nu coincid.");
-      return;
-    }
-    
-    setPasswordError("");
-    
-    // Call API to change password
-    fetch(`${import.meta.env.VITE_API_URL || '/api'}/change-temp-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        username, 
-        tempToken, 
-        newPassword 
-      }),
-    })
-    .then(response => response.json())
-    .then(async data => {
+
+    setLoading(true);
+    try {
+      const response = await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username }),
+      });
+
+      const data = await response.json();
+
       if (data.success) {
-        setShowChangePasswordDialog(false);
-        // Re-login with new password
-        try {
-          const loginResult = await login(username, newPassword);
-          if (loginResult.success) {
-            navigate("/");
-          } else {
-            setLoginError(loginResult.message || "Autentificare eșuată după schimbarea parolei.");
-          }
-        } catch (error) {
-          console.error("Error logging in after password change:", error);
-          setLoginError("Eroare la reconectare după schimbarea parolei.");
-        }
+        toast({
+          title: "Email trimis",
+          description:
+            "Un email cu instrucțiuni pentru resetarea parolei a fost trimis",
+        });
       } else {
-        setPasswordError(data.message || "Eroare la schimbarea parolei.");
+        toast({
+          title: "Eroare",
+          description: data.message || "Utilizatorul nu a fost găsit",
+          variant: "destructive",
+        });
       }
-    })
-    .catch(error => {
-      console.error("Error changing password:", error);
-      setPasswordError("Eroare la conexiunea cu serverul.");
-    });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      toast({
+        title: "Eroare",
+        description: "A apărut o eroare la procesarea cererii",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <Card className="w-[350px] shadow-lg">
+      <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Optizone Log Manager</CardTitle>
-          <CardDescription className="text-center">
-            Introduceți datele de autentificare
-          </CardDescription>
+          <CardTitle className="text-2xl text-center font-bold">
+            Autentificare
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {loginError && (
-              <Alert variant="destructive" className="py-2">
-                <ExclamationTriangleIcon className="h-4 w-4" />
-                <AlertDescription>
-                  {loginError}
-                </AlertDescription>
-              </Alert>
-            )}
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">Nume utilizator</Label>
               <Input
                 id="username"
-                type="text"
-                placeholder="Introduceți utilizatorul"
+                placeholder="Nume utilizator"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Parolă</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Parolă</Label>
+              </div>
               <Input
                 id="password"
                 type="password"
-                placeholder="Introduceți parola"
+                placeholder="Parolă"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
               />
             </div>
             <Button
               type="submit"
               className="w-full"
-              disabled={isSubmitting}
+              disabled={loading}
+              data-testid="login-button"
             >
-              {isSubmitting ? "Se procesează..." : "Autentificare"}
+              {loading ? "Se procesează..." : "Autentificare"}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-center text-sm text-muted-foreground">
-          {/* No demo user information */}
-        </CardFooter>
       </Card>
-      
-      {/* Password Change Dialog */}
-      <Dialog open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Schimbare parolă obligatorie</DialogTitle>
-            <DialogDescription>
-              Trebuie să schimbați parola temporară pentru a continua.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {passwordError && (
-              <Alert variant="destructive" className="py-2">
-                <ExclamationTriangleIcon className="h-4 w-4" />
-                <AlertDescription>{passwordError}</AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">Parolă nouă</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmă parola</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handlePasswordChange}>Schimbă parola</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

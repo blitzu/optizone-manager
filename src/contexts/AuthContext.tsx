@@ -8,7 +8,14 @@ import { User, UserRole } from "@/types";
 interface AuthContextType {
   isAuthenticated: boolean;
   currentUser: User | null;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<{
+    success: boolean;
+    requirePasswordChange?: boolean;
+    tempToken?: string;
+    message?: string;
+    user?: User;
+    token?: string;
+  }>;
   logout: () => void;
   changeTempPassword: (username: string, tempToken: string, newPassword: string) => Promise<boolean>;
   changePassword: (userId: string, oldPassword: string, newPassword: string) => Promise<boolean>;
@@ -24,7 +31,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   currentUser: null,
-  login: async () => false,
+  login: async () => ({ success: false }),
   logout: () => {},
   changeTempPassword: async () => false,
   changePassword: async () => false,
@@ -60,7 +67,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [location]);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<{
+    success: boolean;
+    requirePasswordChange?: boolean;
+    tempToken?: string;
+    message?: string;
+    user?: User;
+    token?: string;
+  }> => {
     try {
       const response = await axios.post("/api/login", { username, password });
 
@@ -78,14 +92,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           navigate("/machines");
         }
         
-        return true;
+        return {
+          success: true,
+          requirePasswordChange: response.data.requirePasswordChange,
+          tempToken: response.data.tempToken,
+          user: response.data.user,
+          token: response.data.token
+        };
       } else {
         toast({
           title: "Eroare",
           description: response.data.message || "Nume de utilizator sau parolă incorecte",
           variant: "destructive",
         });
-        return false;
+        return {
+          success: false,
+          message: response.data.message || "Nume de utilizator sau parolă incorecte"
+        };
       }
     } catch (error: any) {
       console.error("Login error:", error);
@@ -94,7 +117,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         description: error.response?.data?.message || "Nume de utilizator sau parolă incorecte",
         variant: "destructive",
       });
-      return false;
+      return {
+        success: false,
+        message: error.response?.data?.message || "Nume de utilizator sau parolă incorecte"
+      };
     }
   };
 
@@ -350,7 +376,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Add the updateUserRole function implementation
   const updateUserRole = async (userId: string, role: UserRole): Promise<boolean> => {
     try {
       // Don't allow modifying the superuser (ID 1)
@@ -363,7 +388,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
       
-      const response = await axios.put(`/api/users/${userId}/role`, 
+      const response = await axios.put(
+        `/api/users/${userId}/role`, 
         { role },
         {
           headers: {

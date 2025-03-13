@@ -42,14 +42,8 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import EmailMessageDialog from "./EmailMessageDialog";
 
-const useAuthWithRoleUpdate = () => {
-  const auth = useAuth();
-  
-  return auth;
-};
-
 const UserManagement = () => {
-  const { getAllUsers, createUser, deleteUser, resetUserPassword, changeUserPassword, updateUserRole } = useAuthWithRoleUpdate();
+  const { getAllUsers, createUser, deleteUser, resetUserPassword, changeUserPassword, updateUserRole } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("user");
@@ -230,10 +224,10 @@ const UserManagement = () => {
   const handleChangeRole = async () => {
     if (!userToManage) return;
     
-    if (isSuperUser(userToManage.id) && userToManage.role !== newRole) {
+    if (isSuperUser(userToManage.id)) {
       toast({
         title: "Operațiune interzisă",
-        description: "Rolul acestui utilizator nu poate fi modificat.",
+        description: "Rolul REALIZATORULUI APLICAȚIEI nu poate fi modificat.",
         variant: "destructive",
       });
       setShowChangeRoleDialog(false);
@@ -242,16 +236,22 @@ const UserManagement = () => {
     
     try {
       if (userToManage.role !== newRole) {
+        console.log(`Changing role for user ${userToManage.id} from ${userToManage.role} to ${newRole}`);
         const success = await updateUserRole(userToManage.id, newRole);
         
         if (success) {
           toast({
-            title: "Rol actualizat",
+            title: "Succes",
             description: `Rolul utilizatorului ${userToManage.username} a fost schimbat în ${newRole === 'admin' ? 'Administrator' : 'Utilizator standard'}`,
           });
           
           loadUsers();
         }
+      } else {
+        toast({
+          title: "Informare",
+          description: "Nu s-a făcut nicio modificare, rolul este același.",
+        });
       }
       
       setShowChangeRoleDialog(false);
@@ -383,7 +383,7 @@ const UserManagement = () => {
                       <p className="font-medium">{user.username}</p>
                       <p className="text-sm text-muted-foreground">
                         {user.role === 'admin' ? 'Administrator' : 'Utilizator'}
-                        {isSuperUser(user.id) && ' (REALIZATORUL APLICATIEI)'}
+                        {isSuperUser(user.id) && ' (REALIZATORUL APLICAȚIEI)'}
                       </p>
                     </div>
                   </div>
@@ -570,7 +570,7 @@ const UserManagement = () => {
               <Label htmlFor="newRole">Rol nou</Label>
               <Select 
                 value={newRole} 
-                onValueChange={(value: UserRole) => setNewRole(value)}
+                onValueChange={(value: UserRole) => setNewRole(value as UserRole)}
               >
                 <SelectTrigger id="newRole">
                   <SelectValue placeholder="Selectează rolul" />
