@@ -30,7 +30,6 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    // Optimizări pentru producție
     minify: 'terser',
     terserOptions: {
       compress: {
