@@ -2,15 +2,16 @@
 /**
  * Server API Express pentru Optizone Fleet Manager
  * 
- * Acest server va gestiona cererile SSH și alte funcționalități de backend
+ * Acest server gestionează cererile SSH și alte funcționalități de backend
  * Pentru a-l rula:
- * - npm install express cors nodemon ssh2
- * - node server/api.js (sau nodemon server/api.js pentru dezvoltare)
+ * - npm install
+ * - node api.js (sau folosiți un manager de procese precum PM2)
  */
 
 const express = require('express');
 const cors = require('cors');
 const { Client } = require('ssh2');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -18,6 +19,11 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Servim fișierele statice ale aplicației în producție
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../dist')));
+}
 
 // Endpoint pentru testarea conexiunii SSH
 app.post('/api/test-connection', (req, res) => {
@@ -47,10 +53,9 @@ app.post('/api/test-connection', (req, res) => {
     });
   }).connect({
     host: ip,
-    port: 22, // Portul SSH standard
+    port: 22,
     username: sshUsername,
     password: sshPassword,
-    // Opțional, pentru servere care nu au certificate cunoscute
     readyTimeout: 5000,
     tryKeyboard: true,
   });
@@ -58,17 +63,18 @@ app.post('/api/test-connection', (req, res) => {
 
 // Endpoint pentru obținerea log-urilor
 app.post('/api/logs', (req, res) => {
-  const { machineId, startDate, endDate, liveMode } = req.body;
+  const { ip, sshUsername, sshPassword, startDate, endDate, liveMode } = req.body;
   
-  // În implementarea reală ar trebui să obținem mașina din baza de date
-  // În acest exemplu, vom simula obținerea mașinii din localStorage de pe client
-  // Într-un mediu real, ar trebui să stocăm mașinile într-o bază de date
+  if (!ip || !sshUsername || !sshPassword) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Lipsesc date necesare conexiunii SSH' 
+    });
+  }
   
-  // Creăm o nouă conexiune SSH
   const conn = new Client();
   
   // Comanda pentru a obține log-uri
-  // În funcție de tipul de server și log-uri dorite, comanda poate fi diferită
   let command = 'journalctl -n 100';
   
   if (startDate && endDate) {
@@ -142,12 +148,10 @@ app.post('/api/logs', (req, res) => {
     console.error('Eroare la conexiunea SSH:', err);
     res.status(500).json({ error: `Eroare la conexiunea SSH: ${err.message}` });
   }).connect({
-    // Aceste date trebuie obținute în mod corect. Ar trebui stocate în baza de date.
-    // Aici este doar un exemplu
-    host: req.body.ip || '192.168.1.100',
+    host: ip,
     port: 22,
-    username: req.body.sshUsername || 'gts',
-    password: req.body.sshPassword || '1qaz2wsx'
+    username: sshUsername,
+    password: sshPassword
   });
 });
 
@@ -169,6 +173,13 @@ function determineLogLevel(priority) {
     default:
       return 'info';
   }
+}
+
+// În producție, servim aplicația React pentru orice alte rute
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  });
 }
 
 // Pornirea serverului

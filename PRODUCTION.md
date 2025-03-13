@@ -4,6 +4,7 @@
 ## Cerințe sistem
 - Node.js 16 sau mai nou
 - npm 7 sau mai nou
+- Sistem de operare Linux/Unix pentru serverul API (recomandat)
 
 ## Pasul 1: Construirea aplicației
 
@@ -26,18 +27,21 @@ cd server
 # Instalează dependențele serverului
 npm install
 
-# Pornește serverul API (pentru testare)
-npm start
+# Setează variabila de mediu pentru producție
+export NODE_ENV=production
+
+# Pornește serverul API 
+node api.js
 ```
 
-Pentru producție, este recomandat să folosești un manager de procese precum PM2:
+Pentru utilizare în producție, este recomandat să folosești un manager de procese precum PM2:
 
 ```bash
 # Instalează PM2 global
 npm install -g pm2
 
-# Pornește serverul cu PM2
-pm2 start api.js --name "optizone-api"
+# Pornește serverul cu PM2 în modul producție
+NODE_ENV=production pm2 start api.js --name "optizone-api"
 ```
 
 ## Pasul 3: Configurarea serverului web (Nginx recomandat)
@@ -51,14 +55,8 @@ server {
     listen 80;
     server_name your-domain.com;  # Înlocuiește cu domeniul tău
 
-    # Servește fișierele statice ale aplicației
+    # Trimite toate cererile către API-ul nostru
     location / {
-        root /path/to/your/app/dist;  # Înlocuiește cu calea corectă
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Proxy pentru API
-    location /api {
         proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -101,9 +99,20 @@ Pentru a actualiza aplicația în producție:
 
 1. Trage ultimele modificări din repository
 2. Reconstruiește aplicația: `npm run build`
-3. Copiază noile fișiere în directorul de servire
-4. Repornește serverul API dacă este necesar: `pm2 restart optizone-api`
+3. Copiază noile fișiere generate în directorul `dist` în locația corectă
+4. Repornește serverul API: `pm2 restart optizone-api`
 
 ## Notă de securitate
 
-Este esențial să securizați credențialele SSH pentru producție. Metoda actuală este doar pentru demonstrație și nu este recomandată pentru utilizare în medii de producție reale.
+**IMPORTANT**: Securitatea credențialelor SSH este crucială în producție. Recomandări:
+
+- Folosiți autentificarea cu chei publice/private în locul parolelor
+- Implementați o soluție de gestionare a credențialelor (KeePass, Vault, etc.)
+- Stocați credențialele într-o bază de date securizată și nu în localStorage
+- Configurați reguli de firewall pentru a restricționa accesul la serverele SSH
+- Activați autentificarea în doi factori pentru accesul SSH unde este posibil
+- Implementați un sistem de logging și alertare pentru accesele SSH
+
+## Suport și întreținere
+
+Pentru suport tehnic sau întrebări legate de implementare, contactați echipa de dezvoltare la support@optizone.com.

@@ -1,7 +1,6 @@
 
 /**
  * Configurația aplicației pentru diferite medii
- * În producție, aceste valori ar trebui înlocuite cu valorile reale
  */
 
 // Valori implicite pentru mediul de dezvoltare
@@ -14,7 +13,7 @@ const devConfig = {
 
 // Valori pentru mediul de producție
 const prodConfig = {
-  apiUrl: '/api', // În producție, folosim o cale relativă sau un URL complet
+  apiUrl: '/api',
   defaultSshUsername: 'gts',
   defaultSshPassword: '1qaz2wsx',
   env: 'production'

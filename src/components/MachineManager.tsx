@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Machine } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Edit, Trash2, Server, Terminal } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { appConfig } from "@/config/appConfig";
+import { sshService } from "@/services/sshService";
 
 interface MachineManagerProps {
   machines: Machine[];
@@ -115,18 +117,34 @@ const MachineManager = ({
     setSelectedMachine(selectedMachine?.id === machine.id ? null : machine);
   };
 
-  const connectSSH = (machine: Machine) => {
-    toast({
-      title: "Conectare SSH",
-      description: `Se conectează la ${machine.hostname} (${machine.ip}) cu utilizatorul ${machine.sshUsername || "gts"}...`,
-    });
-    
-    setTimeout(() => {
+  const connectSSH = async (machine: Machine) => {
+    try {
       toast({
-        title: "Informație",
-        description: "Implementarea reală a conectării SSH ar trebui făcută pe partea de server. Această funcționalitate este doar pentru demonstrație.",
+        title: "Conectare SSH",
+        description: `Se conectează la ${machine.hostname} (${machine.ip})...`,
       });
-    }, 2000);
+      
+      const result = await sshService.testConnection(machine);
+      
+      if (result.success) {
+        toast({
+          title: "Conectare reușită",
+          description: `Conexiune SSH stabilită cu ${machine.hostname}`,
+        });
+      } else {
+        toast({
+          title: "Conectare eșuată",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Eroare",
+        description: "Nu s-a putut stabili conexiunea SSH. Verificați configurarea serverului.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

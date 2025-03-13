@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -7,8 +8,6 @@ import { AlertCircle, Download, Terminal, Calendar as CalendarIcon } from "lucid
 import { toast } from "@/components/ui/use-toast";
 import { formatDateTime } from "@/utils/dateUtils";
 import { Input } from "@/components/ui/input";
-
-// Date picker component from shadcn
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -41,6 +40,9 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     try {
       const logRequest: LogRequest = {
         machineId: machine.id,
+        ip: machine.ip,
+        sshUsername: machine.sshUsername,
+        sshPassword: machine.sshPassword,
         liveMode: false,
         startDate: startDateTime?.toISOString(),
         endDate: endDateTime?.toISOString()
@@ -72,6 +74,9 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     try {
       const logRequest: LogRequest = {
         machineId: machine.id,
+        ip: machine.ip,
+        sshUsername: machine.sshUsername,
+        sshPassword: machine.sshPassword,
         liveMode: true
       };
       
@@ -87,6 +92,12 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     } catch (error) {
       console.error('Eroare la obținerea log-urilor live:', error);
       // Nu afișăm toast pentru a nu deranja utilizatorul la fiecare eroare în modul live
+      stopLiveMode();
+      toast({
+        title: "Modul live oprit",
+        description: "S-a întâmpinat o eroare în obținerea log-urilor live. Modul live a fost oprit.",
+        variant: "destructive"
+      });
     }
   };
 
