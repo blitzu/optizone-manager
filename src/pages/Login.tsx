@@ -6,23 +6,29 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setLoginError(false);
     
     const success = login(username, password);
     
     setIsSubmitting(false);
     if (success) {
       navigate("/");
+    } else {
+      setLoginError(true);
     }
   };
 
@@ -37,6 +43,15 @@ const Login = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {loginError && (
+              <Alert variant="destructive" className="py-2">
+                <ExclamationTriangleIcon className="h-4 w-4" />
+                <AlertDescription>
+                  Autentificare eșuată. Aplicația utilizează localStorage pentru stocarea utilizatorilor. 
+                  Credențialele implicite sunt: admin/admin123
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="username">Nume utilizator</Label>
               <Input

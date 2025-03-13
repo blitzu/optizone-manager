@@ -1,3 +1,4 @@
+
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { User, UserRole, AuthState } from "@/types";
 import { toast } from "@/components/ui/use-toast";
@@ -42,11 +43,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       : { isAuthenticated: false, currentUser: null };
   });
 
-  // Inițializăm utilizatorii
+  // Inițializăm utilizatorii și ne asigurăm că utilizatorii impliciti sunt mereu disponibili
   useEffect(() => {
     const savedUsers = localStorage.getItem(USERS_STORAGE_KEY);
     if (!savedUsers) {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(DEFAULT_USERS));
+    } else {
+      // Ne asigurăm că utilizatorii impliciti există mereu
+      const users = JSON.parse(savedUsers);
+      let usersChanged = false;
+      
+      // Verificăm dacă admin există
+      if (!users.some(u => u.username === 'admin')) {
+        users.push(DEFAULT_USERS[0]);
+        usersChanged = true;
+      }
+      
+      // Verificăm dacă user există
+      if (!users.some(u => u.username === 'user')) {
+        users.push(DEFAULT_USERS[1]);
+        usersChanged = true;
+      }
+      
+      // Salvăm utilizatorii actualizați dacă au fost modificări
+      if (usersChanged) {
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      }
     }
   }, []);
 
