@@ -107,7 +107,7 @@ const Login = () => {
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <Card className="w-[350px] shadow-lg">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Optizone Fleet Manager</CardTitle>
+          <CardTitle className="text-2xl text-center">Optizone Log Manager</CardTitle>
           <CardDescription className="text-center">
             Introduceți datele de autentificare
           </CardDescription>

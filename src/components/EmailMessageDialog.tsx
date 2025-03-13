@@ -35,7 +35,7 @@ const EmailMessageDialog = ({
   const emailMessage = `
 Bună,
 
-Tocmai ți-am creat un cont în aplicația Optizone Fleet Manager.
+Tocmai ți-am creat un cont în aplicația Optizone Log Manager.
 
 Poți accesa aplicația la adresa: ${appUrl}
 
@@ -47,7 +47,7 @@ ${requirePasswordChange ? "La prima autentificare va trebui să-ți schimbi paro
 În caz că întâmpini probleme cu autentificarea, te rog să mă contactezi.
 
 Cu stimă,
-Administratorul Optizone Fleet Manager
+Administratorul Optizone Log Manager
 `.trim();
 
   const copyToClipboard = () => {

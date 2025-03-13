@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -113,7 +114,7 @@ const Index = () => {
   return (
     <div className={`${activeTab === 'logs' && selectedMachine ? 'container-fluid px-0 mx-0 max-w-none' : 'container mx-auto'} py-6`}>
       <div className={`${activeTab === 'logs' && selectedMachine ? 'px-6' : ''} flex justify-between items-center mb-6`}>
-        <h1 className="text-3xl font-bold">Optizone Fleet Manager</h1>
+        <h1 className="text-3xl font-bold">Optizone Log Manager</h1>
         <div className="flex items-center gap-4">
           <div className="text-sm">
             Conectat ca: <span className="font-medium">{currentUser?.username}</span> 
