@@ -67,10 +67,31 @@ input[type="time"]::-webkit-inner-spin-button {
   margin: 0 !important;
 }
 
+/* Reguli pentru a forța formatul 24 ore */
+input[type="time"]::-webkit-datetime-edit-hour-field,
+input[type="time"]::-webkit-datetime-edit-minute-field {
+  -webkit-appearance: none !important;
+}
+
 /* Firefox-specific 24-hour format */
 @-moz-document url-prefix() {
   input[type="time"] {
     text-align: center;
+  }
+  
+  /* Forțarea formatului 24h în Firefox */
+  input[type="time"]::part(hour-minute-divider) {
+    content: ":";
+  }
+  
+  input[type="time"]::part(hour) {
+    min-width: 1.5em;
+    text-align: right;
+  }
+  
+  input[type="time"]::part(minute) {
+    min-width: 1.5em;
+    text-align: left;
   }
 }
 
@@ -91,6 +112,20 @@ input[type="time"]::-webkit-inner-spin-button {
     min-height: 44px;
     text-align: center;
     padding-right: 0 !important;
+  }
+  
+  /* Elimină butonul dropdown pe iOS */
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    color: transparent;
+    background: transparent;
   }
 }
 

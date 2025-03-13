@@ -13,9 +13,21 @@ const TimeInput = React.forwardRef<HTMLInputElement, TimeInputProps>(
     const [timeValue, setTimeValue] = React.useState(value || `${defaultHour}:${defaultMinute}`);
     
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setTimeValue(e.target.value);
+      // Asigurăm-ne că valoarea este în format 24 ore
+      const newValue = e.target.value;
+      setTimeValue(newValue);
+      
       if (onChange) {
-        onChange(e);
+        // Creăm un nou eveniment sintetic pentru a păstra interfața
+        const syntheticEvent = {
+          ...e,
+          target: {
+            ...e.target,
+            value: newValue
+          }
+        } as React.ChangeEvent<HTMLInputElement>;
+        
+        onChange(syntheticEvent);
       }
     };
 
