@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from "react";
 import axios from "axios";
 import { toast } from "@/components/ui/use-toast";
@@ -89,6 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (requirePasswordChange && tempToken) {
           navigate(`/change-password?tempToken=${tempToken}`);
         } else {
+          // Modificat pentru a corespunde cu rutele existente
           navigate("/");
         }
         

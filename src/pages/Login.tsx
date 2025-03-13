@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,13 +31,7 @@ const Login = () => {
     try {
       const result = await login(username, password);
       
-      if (result.success) {
-        if (result.requirePasswordChange && result.tempToken) {
-          navigate(`/change-password?tempToken=${result.tempToken}`);
-        } else {
-          navigate("/machines");
-        }
-      } else {
+      if (!result.success) {
         // Error message is shown by the login function via toast
         console.error(result.message);
       }
