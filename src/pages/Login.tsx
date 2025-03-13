@@ -12,7 +12,7 @@ const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [internalIp, setInternalIp] = useState("");
+  const [internalIp, setInternalIp] = useState("necunoscut (client)");
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -20,47 +20,66 @@ const Login = () => {
   useEffect(() => {
     const getInternalIp = async () => {
       try {
-        // Folosim RTCPeerConnection pentru a obține IP-ul intern
-        const pc = new RTCPeerConnection({ iceServers: [] });
-        pc.createDataChannel("");
+        // Încercăm să obținem IP-ul intern prin comunicare cu serverul
+        const response = await fetch('/api/get-client-ip', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
         
-        pc.onicecandidate = (event) => {
-          if (!event.candidate) return;
-          
-          // Căutăm adresele IPv4 interne (regex pentru adrese 10.x.x.x, 172.16-31.x.x sau 192.168.x.x)
-          const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
-          const ipMatch = ipRegex.exec(event.candidate.candidate);
-          
-          if (ipMatch && ipMatch[1]) {
-            const ip = ipMatch[1];
-            
-            // Verificăm dacă este un IP intern
-            if (
-              ip.startsWith('10.') || 
-              ip.startsWith('192.168.') || 
-              /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)
-            ) {
-              console.log("IP intern detectat:", ip);
-              setInternalIp(ip);
-              pc.onicecandidate = null;
-              pc.close();
-            }
+        if (response.ok) {
+          const data = await response.json();
+          if (data.ip) {
+            console.log("IP intern detectat de server:", data.ip);
+            setInternalIp(data.ip);
+          } else {
+            console.log("Serverul nu a putut detecta IP-ul");
+            setInternalIp("necunoscut (server)");
           }
-        };
-        
-        // Inițiem procesul de obținere a candidaților ICE
-        await pc.createOffer().then(offer => pc.setLocalDescription(offer));
-        
-        // În cazul în care nu am găsit niciun IP intern după un timp, vom folosi "necunoscut"
-        setTimeout(() => {
-          if (!internalIp) {
-            console.log("Nu s-a putut detecta IP-ul intern");
-            setInternalIp("necunoscut (client)");
-          }
-        }, 1000);
+        } else {
+          console.log("Eroare la obținerea IP-ului de la server");
+          setInternalIp("eroare de comunicare");
+        }
       } catch (error) {
         console.error("Eroare la obținerea IP-ului intern:", error);
-        setInternalIp("necunoscut (eroare)");
+        setInternalIp("eroare de comunicare");
+        
+        // Fallback la metoda RTCPeerConnection dacă API-ul nu funcționează
+        try {
+          // Folosim RTCPeerConnection pentru a obține IP-ul intern
+          const pc = new RTCPeerConnection({ iceServers: [] });
+          pc.createDataChannel("");
+          
+          pc.onicecandidate = (event) => {
+            if (!event.candidate) return;
+            
+            // Căutăm adresele IPv4 interne (regex pentru adrese 10.x.x.x, 172.16-31.x.x sau 192.168.x.x)
+            const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
+            const ipMatch = ipRegex.exec(event.candidate.candidate);
+            
+            if (ipMatch && ipMatch[1]) {
+              const ip = ipMatch[1];
+              
+              // Verificăm dacă este un IP intern
+              if (
+                ip.startsWith('10.') || 
+                ip.startsWith('192.168.') || 
+                /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)
+              ) {
+                console.log("IP intern detectat prin RTCPeerConnection:", ip);
+                setInternalIp(ip);
+                pc.onicecandidate = null;
+                pc.close();
+              }
+            }
+          };
+          
+          // Inițiem procesul de obținere a candidaților ICE
+          await pc.createOffer().then(offer => pc.setLocalDescription(offer));
+        } catch (rtcError) {
+          console.error("Eroare la metoda fallback RTCPeerConnection:", rtcError);
+        }
       }
     };
     
