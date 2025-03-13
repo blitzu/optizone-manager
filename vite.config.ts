@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     proxy: {
-      // Configurare proxy pentru API în dezvoltare
+      // Configurare proxy pentru API
       "/api": {
         target: "http://localhost:3001",
         changeOrigin: true,
@@ -30,11 +30,11 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true, // Activăm sourcemap pentru debugging
+    sourcemap: true,
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: false, // Nu eliminăm console.log în build
+        drop_console: false,
         drop_debugger: false
       }
     }

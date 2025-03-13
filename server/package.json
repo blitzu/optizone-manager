@@ -5,8 +5,9 @@
   "description": "Server API for Optizone Fleet Manager",
   "main": "api.js",
   "scripts": {
-    "start": "node api.js",
-    "start:prod": "NODE_ENV=production node api.js"
+    "start": "NODE_ENV=production node api.js",
+    "start:prod": "NODE_ENV=production node api.js",
+    "start:dev": "node api.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

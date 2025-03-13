@@ -31,13 +31,9 @@ const MACHINES_FILE_PATH = path.join(__dirname, 'machines.json');
 app.use(cors());
 app.use(express.json());
 
-// Servim fișierele statice ale aplicației
-if (process.env.NODE_ENV === 'production') {
-  console.log('Serving static files from:', path.join(__dirname, '../dist'));
-  app.use(express.static(path.join(__dirname, '../dist')));
-} else {
-  console.log('Running in development mode, static files will be served by Vite');
-}
+// Servim fișierele statice ale aplicației în modul producție
+console.log('Serving static files from:', path.join(__dirname, '../dist'));
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // Funcție pentru a citi utilizatorii din fișier
 function getUsers() {
@@ -1094,21 +1090,15 @@ function mapLogLevel(level) {
 }
 
 // În producție, servim aplicația React pentru orice alte rute
-// În dezvoltare, lăsăm Vite să se ocupe de servirea fișierelor frontend
-// Această rută trebuie să fie ultimul middleware!
+// Această rută trebuie să fie ultimul middleware și acum este configurată doar pentru producție
 app.get('*', (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
-    console.log(`Serving index.html for path: ${req.path}`);
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
-  } else {
-    // În dezvoltare, redirectăm la serverul de dezvoltare Vite
-    res.redirect('http://localhost:8080' + req.path);
-  }
+  console.log(`Serving index.html for path: ${req.path}`);
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // Pornirea serverului
 app.listen(PORT, () => {
   console.log(`API Server pentru Optizone Fleet Manager rulează pe portul ${PORT}`);
-  console.log(`Mode: ${process.env.NODE_ENV || 'development'}`);
-});
+  console.log(`Mode: production`);
+
 

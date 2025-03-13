@@ -19,5 +19,5 @@ const prodConfig = {
   env: 'production'
 };
 
-// Exportăm configurația în funcție de mediu
-export const appConfig = process.env.NODE_ENV === 'production' ? prodConfig : devConfig;
+// Forțăm modul producție, indiferent de valoarea NODE_ENV
+export const appConfig = prodConfig;
