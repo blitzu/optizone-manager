@@ -50,34 +50,47 @@
   }
 }
 
-/* Forțare format 24 ore pentru input-uri de tip time */
-input[type="time"]::-webkit-datetime-edit-ampm-field {
-  display: none !important;
-}
-
+/* Reguli stricte pentru forțarea formatului 24h pentru input time */
 input[type="time"] {
-  -webkit-appearance: none;
+  -webkit-appearance: none !important;
+  -moz-appearance: textfield !important;
+  appearance: none !important;
 }
 
-/* Ascunde indicatorul de calendar pentru input-uri time */
-input[type="time"]::-webkit-calendar-picker-indicator {
-  background: none;
-}
-
-/* Stil specific pentru clasa 24hr-time */
-.24hr-time::-webkit-datetime-edit-ampm-field {
+/* Ascunde complet indicatorul de calendar și sectiunea AM/PM */
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-datetime-edit-ampm-field,
+input[type="time"]::-webkit-inner-spin-button {
   display: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  margin: 0 !important;
 }
 
-.24hr-time::-webkit-calendar-picker-indicator {
-  display: none;
-}
-
-/* Override specific pentru browsere care încă afișează AM/PM */
-@supports (-webkit-touch-callout: none) {
-  /* iOS specific style */
+/* Firefox-specific 24-hour format */
+@-moz-document url-prefix() {
   input[type="time"] {
-    min-height: 40px; /* Măriți înălțimea pentru a asigura vizibilitatea completă */
+    text-align: center;
+  }
+}
+
+/* Stil personalizat pentru input-uri time */
+.time-input-24h {
+  position: relative;
+  width: 100%;
+}
+
+.time-input-24h input {
+  width: 100%;
+  text-align: center;
+}
+
+/* Soluție pentru iOS */
+@supports (-webkit-touch-callout: none) {
+  input[type="time"] {
+    min-height: 44px;
+    text-align: center;
+    padding-right: 0 !important;
   }
 }
 

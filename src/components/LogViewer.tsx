@@ -2,12 +2,12 @@
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Download, Terminal } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatDateTime, combineDateTime, formatDateForAPI } from "@/utils/dateUtils";
+import { TimeInput } from "@/components/ui/time-input";
 
 // Date picker component from shadcn
 import { format } from "date-fns";
@@ -268,20 +268,20 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium mb-1 block">Ora de început</label>
-                    <Input
-                      type="time"
+                    <TimeInput
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
-                      className="24hr-time"
+                      defaultHour="00"
+                      defaultMinute="00"
                     />
                   </div>
                   <div>
                     <label className="text-sm font-medium mb-1 block">Ora de sfârșit</label>
-                    <Input
-                      type="time"
+                    <TimeInput
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
-                      className="24hr-time"
+                      defaultHour="23"
+                      defaultMinute="59"
                     />
                   </div>
                 </div>
