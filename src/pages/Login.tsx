@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,95 +12,8 @@ const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [internalIp, setInternalIp] = useState("necunoscut (client)");
   const { login } = useAuth();
   const navigate = useNavigate();
-
-  // Obținem IP-ul intern la încărcarea componentei
-  useEffect(() => {
-    const detectInternalIp = async () => {
-      try {
-        // Metodă mai robustă pentru detectarea IP-urilor în LAN
-        const interfaces = await getNetworkInterfaces();
-        if (interfaces && interfaces.length > 0) {
-          console.log("Network interfaces detected:", interfaces);
-          // Folosim primul IP intern valid detectat
-          setInternalIp(interfaces[0]);
-        } else {
-          console.log("Nu s-a putut detecta niciun IP intern");
-          setInternalIp("necunoscut (client)");
-        }
-      } catch (error) {
-        console.error("Eroare la detectarea IP-ului intern:", error);
-        setInternalIp("necunoscut (eroare)");
-      }
-    };
-
-    detectInternalIp();
-  }, []);
-
-  // Funcție pentru a obține toate interfețele de rețea
-  const getNetworkInterfaces = () => {
-    return new Promise<string[]>((resolve) => {
-      const ips: string[] = [];
-
-      // Folosim WebRTC pentru a descoperi toate IP-urile
-      try {
-        const pc = new RTCPeerConnection({
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-        });
-
-        // Timeout pentru a ne asigura că nu așteptăm la infinit
-        const timeoutId = setTimeout(() => {
-          pc.close();
-          console.log("Timeout la detectarea IP-urilor, returnăm ce am găsit:", ips);
-          resolve(ips.length > 0 ? ips : []);
-        }, 2000);
-
-        pc.createDataChannel("");
-        
-        pc.onicecandidate = (event) => {
-          if (!event.candidate) return;
-          
-          // Regex optimizat pentru adrese IP private (LAN)
-          const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
-          const ipMatch = ipRegex.exec(event.candidate.candidate);
-          
-          if (ipMatch && ipMatch[1]) {
-            const ip = ipMatch[1];
-            
-            // Verificăm dacă este un IP intern/privat
-            if (
-              ip.startsWith('10.') || 
-              ip.startsWith('192.168.') || 
-              /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip) ||
-              ip.startsWith('169.254.') // Link-local addresses
-            ) {
-              if (!ips.includes(ip)) {
-                console.log("IP intern detectat:", ip);
-                ips.push(ip);
-              }
-            }
-          }
-        };
-
-        // După ce am colectat toate candidații ICE, returnăm IP-urile
-        pc.onicegatheringstatechange = () => {
-          if (pc.iceGatheringState === 'complete') {
-            clearTimeout(timeoutId);
-            pc.close();
-            console.log("Colectare IP-uri completă:", ips);
-            resolve(ips);
-          }
-        };
-        
-        pc.createOffer().then(offer => pc.setLocalDescription(offer));
-      } catch (error) {
-        console.error("Eroare la obținerea interfețelor de rețea:", error);
-        resolve([]);
-      }
-    });
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,9 +31,9 @@ const Login = () => {
 
     try {
       console.log("Attempting login for user:", username);
-      console.log("Using internal IP:", internalIp);
       
-      const result = await login(username, password, internalIp);
+      // Nu mai trimitem explicit IP-ul - serverul îl va detecta din conexiunea TCP
+      const result = await login(username, password);
       
       console.log("Login result:", result);
       console.log("User data with lastLogin info:", result.user);

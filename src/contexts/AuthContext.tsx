@@ -7,7 +7,7 @@ import { User, UserRole } from "@/types";
 interface AuthContextType {
   isAuthenticated: boolean;
   currentUser: User | null;
-  login: (username: string, password: string, internalIp?: string) => Promise<{
+  login: (username: string, password: string) => Promise<{
     success: boolean;
     requirePasswordChange?: boolean;
     tempToken?: string;
@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [isAuthenticated]);
 
-  const login = async (username: string, password: string, internalIp?: string): Promise<{
+  const login = async (username: string, password: string): Promise<{
     success: boolean;
     requirePasswordChange?: boolean;
     tempToken?: string;
@@ -88,14 +88,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token?: string;
   }> => {
     try {
-      const ipAddress = internalIp || 'unknown';
-      
-      console.log("Sending login request with IP:", ipAddress);
+      console.log("Sending login request for user:", username);
       
       const response = await axios.post("/api/login", { 
         username, 
-        password,
-        ipAddress: ipAddress
+        password
       });
 
       console.log("Login response from server:", response.data);
