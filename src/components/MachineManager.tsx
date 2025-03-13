@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Edit, Trash2, Server, Terminal } from "lucide-react";
+import { Edit, Trash2, Server, Terminal, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { appConfig } from "@/config/appConfig";
 import { sshService } from "@/services/sshService";
@@ -38,17 +38,29 @@ const MachineManager = ({
   const { currentUser } = useAuth();
 
   useEffect(() => {
-    fetchMachines();
-  }, []);
+    if (currentUser && currentUser.id) {
+      console.log("MachineManager: utilizator autentificat, se încarcă mașinile");
+      fetchMachines();
+    } else {
+      console.log("MachineManager: nu există utilizator autentificat sau id lipsește");
+    }
+  }, [currentUser]);
 
   const fetchMachines = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('auth-token');
+      let token = localStorage.getItem('auth-token');
       
       if (!token) {
+        token = localStorage.getItem('token');
+      }
+      
+      if (!token) {
+        console.error("MachineManager: Nu s-a găsit niciun token de autentificare");
         throw new Error('No authentication token found');
       }
+      
+      console.log("MachineManager: Se face cerere pentru mașini cu token");
       
       const response = await fetch(`${API_URL}/machines`, {
         headers: {
@@ -58,12 +70,15 @@ const MachineManager = ({
       
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("MachineManager: Răspuns de eroare de la server:", errorData);
         throw new Error(errorData.message || 'Failed to fetch machines');
       }
       
       const data: MachineResponse = await response.json();
+      console.log("MachineManager: Date primite de la server:", data);
       
       if (data.success && data.machines) {
+        console.log("MachineManager: Mașini încărcate cu succes:", data.machines.length);
         saveMachines(data.machines);
       } else {
         toast({
@@ -73,7 +88,7 @@ const MachineManager = ({
         });
       }
     } catch (error) {
-      console.error("Error fetching machines:", error);
+      console.error("MachineManager: Error fetching machines:", error);
       toast({
         title: "Eroare de conexiune",
         description: "Nu s-a putut conecta la server pentru a încărca mașinile.",
@@ -120,7 +135,7 @@ const MachineManager = ({
     }
 
     try {
-      const token = localStorage.getItem('auth-token');
+      let token = localStorage.getItem('auth-token');
       
       if (!token) {
         toast({
@@ -134,7 +149,6 @@ const MachineManager = ({
       let response;
       
       if (isEditing) {
-        // Update machine
         response = await fetch(`${API_URL}/machines/${currentMachine.id}`, {
           method: 'PUT',
           headers: {
@@ -144,7 +158,6 @@ const MachineManager = ({
           body: JSON.stringify(currentMachine)
         });
       } else {
-        // Add new machine
         response = await fetch(`${API_URL}/machines`, {
           method: 'POST',
           headers: {
@@ -164,7 +177,6 @@ const MachineManager = ({
       
       if (data.success) {
         if (isEditing && data.machine) {
-          // Update existing machine in the list
           const updatedMachines = machines.map(m => 
             m.id === currentMachine.id ? { ...data.machine } : m
           );
@@ -179,7 +191,6 @@ const MachineManager = ({
             description: `Mașina ${currentMachine.hostname} a fost actualizată cu succes.`
           });
         } else if (data.machine) {
-          // Add new machine to the list
           saveMachines([...machines, data.machine]);
           toast({
             title: "Mașină adăugată",
@@ -187,7 +198,6 @@ const MachineManager = ({
           });
         }
         
-        // Reset form and close dialog
         setDialogOpen(false);
         resetForm();
       } else {
@@ -209,7 +219,7 @@ const MachineManager = ({
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('auth-token');
+      let token = localStorage.getItem('auth-token');
       
       if (!token) {
         toast({
@@ -318,7 +328,18 @@ const MachineManager = ({
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>Mașini ({machines.length})</span>
-          <Button onClick={openAddDialog}>Adaugă mașină</Button>
+          <div className="flex space-x-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={fetchMachines}
+              disabled={isLoading}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {isLoading ? "Se încarcă..." : "Reîmprospătează"}
+            </Button>
+            <Button onClick={openAddDialog}>Adaugă mașină</Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -444,3 +465,4 @@ const MachineManager = ({
 };
 
 export default MachineManager;
+

@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from "react";
 import axios from "axios";
 import { toast } from "@/hooks/use-toast";
@@ -64,9 +65,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const user = localStorage.getItem("user");
 
       if (token && user) {
+        // Verificăm dacă token-ul și datele utilizatorului există
+        console.log("Auth check: Token și user găsite în localStorage");
+        
+        // Setăm și auth-token pentru cereri API
+        localStorage.setItem("auth-token", token);
+        
         setIsAuthenticated(true);
         setCurrentUser(JSON.parse(user));
       } else {
+        console.log("Auth check: Nu s-au găsit token sau user în localStorage");
         setIsAuthenticated(false);
         setCurrentUser(null);
       }
@@ -142,11 +150,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           };
         }
         
-        // If no password change required, set authentication
-        localStorage.setItem("token", response.data.token);
+        // Dacă nu este necesară schimbarea parolei, setăm autentificarea
+        const authToken = response.data.token;
+        localStorage.setItem("token", authToken);
         localStorage.setItem("user", JSON.stringify(userData));
         
-        axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.token}`;
+        // Salvăm token-ul și pentru cereri API (pentru a fi siguri)
+        localStorage.setItem("auth-token", authToken);
+        
+        // Setăm header-ul de autorizare pentru toate cererile axios
+        axios.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
+        console.log("Token setat în localStorage și headers axios:", authToken ? "Token prezent" : "Token lipsă");
         
         setIsAuthenticated(true);
         setCurrentUser(userData);
@@ -154,7 +168,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return {
           success: true,
           user: userData,
-          token: response.data.token
+          token: authToken
         };
       } else {
         toast({
@@ -204,8 +218,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
+    console.log("Logout: se șterge token și user din localStorage");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("auth-token"); // Ștergem și auth-token
     delete axios.defaults.headers.common["Authorization"];
     setIsAuthenticated(false);
     setCurrentUser(null);

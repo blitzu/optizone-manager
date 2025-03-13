@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -20,51 +19,66 @@ const Index = () => {
 
   const [machines, setMachines] = useState<Machine[]>([]);
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const fetchMachines = async () => {
-      try {
-        const token = localStorage.getItem('auth-token');
-        
-        if (!token) {
-          throw new Error('No authentication token found');
+    if (currentUser && currentUser.id) {
+      console.log("Utilizator autentificat, se încarcă mașinile:", currentUser);
+      fetchMachines();
+    } else {
+      console.log("Nu există utilizator autentificat sau id lipsește:", currentUser);
+    }
+  }, [currentUser]);
+
+  const fetchMachines = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('auth-token');
+      
+      if (!token) {
+        console.error("Nu s-a găsit token de autentificare în localStorage");
+        throw new Error('No authentication token found');
+      }
+      
+      console.log("Se face cerere pentru mașini cu token:", token ? "Token prezent" : "Token lipsă");
+      
+      const response = await fetch(`${API_URL}/machines`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-        
-        const response = await fetch(`${API_URL}/machines`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to fetch machines');
-        }
-        
-        const data = await response.json();
-        
-        if (data.success && data.machines) {
-          setMachines(data.machines);
-        } else {
-          console.error("Error fetching machines:", data.message);
-          toast({
-            title: "Eroare",
-            description: data.message || "Nu s-au putut încărca mașinile.",
-            variant: "destructive"
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching machines:", error);
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Răspuns de eroare de la server:", errorData);
+        throw new Error(errorData.message || 'Failed to fetch machines');
+      }
+      
+      const data = await response.json();
+      console.log("Date primite de la server:", data);
+      
+      if (data.success && data.machines) {
+        console.log("Mașini încărcate cu succes:", data.machines.length);
+        setMachines(data.machines);
+      } else {
+        console.error("Eroare la încărcarea mașinilor:", data.message);
         toast({
-          title: "Eroare de conexiune",
-          description: "Nu s-a putut conecta la server pentru a încărca mașinile.",
+          title: "Eroare",
+          description: data.message || "Nu s-au putut încărca mașinile.",
           variant: "destructive"
         });
       }
-    };
-    
-    fetchMachines();
-  }, []);
+    } catch (error) {
+      console.error("Eroare la încărcarea mașinilor:", error);
+      toast({
+        title: "Eroare de conexiune",
+        description: "Nu s-a putut conecta la server pentru a încărca mașinile.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const saveMachines = (updatedMachines: Machine[]) => {
     setMachines(updatedMachines);
@@ -109,6 +123,11 @@ const Index = () => {
     setSelectedMachine(null);
   };
 
+  const handleRefreshMachines = () => {
+    console.log("Se reîncarcă mașinile manual");
+    fetchMachines();
+  };
+
   const [activeTab, setActiveTab] = useState<string>(isAdmin ? "machines" : "logs");
 
   return (
@@ -144,6 +163,16 @@ const Index = () => {
         
         {isAdmin && (
           <TabsContent value="machines" className="px-6">
+            <div className="flex justify-end mb-4">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefreshMachines}
+                disabled={isLoading}
+              >
+                {isLoading ? "Se încarcă..." : "Reîmprospătează lista"}
+              </Button>
+            </div>
             <MachineManager 
               machines={machines} 
               saveMachines={saveMachines}
@@ -172,8 +201,13 @@ const Index = () => {
           ) : (
             <div className="p-8">
               <h3 className="text-lg font-medium mb-4 text-center">Selectați un PC pentru a vizualiza logurile</h3>
-              {machines.length === 0 ? (
-                <p className="text-center text-muted-foreground">Nu există mașini disponibile pentru vizualizare.</p>
+              {isLoading ? (
+                <p className="text-center">Se încarcă mașinile...</p>
+              ) : machines.length === 0 ? (
+                <div className="text-center">
+                  <p className="text-muted-foreground mb-4">Nu există mașini disponibile pentru vizualizare.</p>
+                  <Button onClick={handleRefreshMachines}>Reîncarcă mașinile</Button>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                   {machines.map(machine => (
