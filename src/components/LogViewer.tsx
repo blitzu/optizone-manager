@@ -23,7 +23,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const [liveMode, setLiveMode] = useState(false);
   const [startDateTime, setStartDateTime] = useState<Date>();
   const [endDateTime, setEndDateTime] = useState<Date>();
-  const [applicationName, setApplicationName] = useState<string>("");
+  const [applicationName, setApplicationName] = useState<string>("aixp_ee");
   const liveIntervalRef = useRef<number>();
 
   const getLevelColor = (level: LogEntry['level']) => {
@@ -47,7 +47,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         liveMode: false,
         startDate: startDateTime?.toISOString(),
         endDate: endDateTime?.toISOString(),
-        applicationName: applicationName
+        applicationName: applicationName || "aixp_ee"
       };
       
       const logData = await sshService.fetchLogs(logRequest);
@@ -80,7 +80,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         sshUsername: machine.sshUsername,
         sshPassword: machine.sshPassword,
         liveMode: true,
-        applicationName: applicationName
+        applicationName: applicationName || "aixp_ee"
       };
       
       const liveLogs = await sshService.fetchLogs(logRequest);
@@ -90,11 +90,11 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         if (!liveLogs || liveLogs.length === 0) return prev;
         
         const combined = [...prev, ...liveLogs];
-        // Eliminăm duplicatele și păstrăm doar ultimele 1000 de log-uri
+        // Eliminăm duplicatele și păstrăm doar ultimele 2000 de log-uri (conform comenzii)
         const uniqueLogs = Array.from(new Map(combined.map(log => 
           [`${log.timestamp}-${log.level}-${log.message}`, log]
         )).values());
-        return uniqueLogs.slice(Math.max(0, uniqueLogs.length - 1000));
+        return uniqueLogs.slice(Math.max(0, uniqueLogs.length - 2000));
       });
     } catch (error) {
       console.error('Eroare la obținerea log-urilor live:', error);
@@ -221,14 +221,14 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                 <div>
                   <label className="text-sm font-medium mb-1 block">Numele aplicației/serviciului</label>
                   <Input
-                    placeholder="Introduceți numele aplicației (ex: nginx.service)"
+                    placeholder="Introduceți numele aplicației (ex: aixp_ee)"
                     value={applicationName}
                     onChange={(e) => setApplicationName(e.target.value)}
                     className="mb-4"
                   />
                   <div className="flex flex-col space-y-1 text-xs text-muted-foreground">
-                    <p>Introduceți numele serviciului systemd (ex: nginx.service)</p>
-                    <p>Lăsați gol pentru a vedea toate log-urile sistemului</p>
+                    <p>Introduceți numele serviciului systemd (ex: aixp_ee)</p>
+                    <p>Valoarea implicită este "aixp_ee"</p>
                   </div>
                 </div>
                 

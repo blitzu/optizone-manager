@@ -1,4 +1,3 @@
-
 /**
  * Server API Express pentru Optizone Fleet Manager
  * 
@@ -74,31 +73,22 @@ app.post('/api/logs', (req, res) => {
   
   const conn = new Client();
   
-  // Comanda pentru a obține log-uri
-  let command = 'journalctl -n 100';
-  
-  // Adăugăm filtrul pentru aplicație dacă este specificat
-  if (applicationName && applicationName.trim() !== '') {
-    const appFilter = applicationName.trim();
-    command = `journalctl -u ${appFilter} -n 100`;
-  }
+  // Comandă pentru obținerea log-urilor conform scriptului furnizat
+  let command = '';
   
   if (startDate && endDate) {
     // Formatăm datele pentru a fi utilizate în comanda journalctl
     const start = new Date(startDate).toISOString();
     const end = new Date(endDate).toISOString();
     
-    if (applicationName && applicationName.trim() !== '') {
-      command = `journalctl -u ${applicationName.trim()} --since="${start}" --until="${end}" -o json`;
-    } else {
-      command = `journalctl --since="${start}" --until="${end}" -o json`;
-    }
+    // Folosim formatul specificat în script cu -S și -U
+    command = `journalctl -a -n 1000 -u ${applicationName || 'aixp_ee'} -S "${start}" -U "${end}" -o json`;
   } else if (liveMode) {
-    if (applicationName && applicationName.trim() !== '') {
-      command = `journalctl -f -n 30 -u ${applicationName.trim()} -o json`;
-    } else {
-      command = 'journalctl -f -n 30 -o json';
-    }
+    // Folosim comanda live specificată în script
+    command = `journalctl -a -n 2000 -f -u ${applicationName || 'aixp_ee'} -o json`;
+  } else {
+    // Comandă implicită pentru ultimele log-uri
+    command = `journalctl -a -n 1000 -u ${applicationName || 'aixp_ee'} -o json`;
   }
   
   console.log(`Executare comandă SSH: ${command}`);
@@ -123,7 +113,7 @@ app.post('/api/logs', (req, res) => {
             console.error("Eroare la închiderea stream-ului:", e);
           }
           res.json(logs);
-        }, 5000); // Obținem date pentru 5 secunde, apoi închidem conexiunea
+        }, 10000); // Măresc timpul la 10 secunde pentru a obține mai multe date în modul live
       }
       
       stream.on('data', (data) => {
