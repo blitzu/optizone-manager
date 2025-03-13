@@ -44,21 +44,17 @@ import EmailMessageDialog from "./EmailMessageDialog";
 const useAuthWithRoleUpdate = () => {
   const auth = useAuth();
   
-  if (!auth.updateUserRole) {
-    return {
-      ...auth,
-      updateUserRole: async (userId: string, role: UserRole) => {
-        console.log(`Updating user ${userId} to role ${role}`);
-        toast({
-          title: "Funcționalitate în dezvoltare",
-          description: "Schimbarea rolului va fi implementată în versiunea următoare",
-        });
-        return false;
-      }
-    };
-  }
-  
-  return auth;
+  return {
+    ...auth,
+    updateUserRole: auth.updateUserRole || (async (userId: string, role: UserRole) => {
+      console.log(`Updating user ${userId} to role ${role}`);
+      toast({
+        title: "Funcționalitate în dezvoltare",
+        description: "Schimbarea rolului va fi implementată în versiunea următoare",
+      });
+      return false;
+    })
+  };
 };
 
 const UserManagement = () => {
