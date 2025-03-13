@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => ({
       "/api": {
         target: "http://localhost:3001",
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
       }
     }
   },
@@ -29,12 +30,12 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false,
+    sourcemap: true, // Activăm sourcemap pentru debugging
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,
-        drop_debugger: true
+        drop_console: false, // Nu eliminăm console.log în build
+        drop_debugger: false
       }
     }
   }
