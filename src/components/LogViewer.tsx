@@ -342,45 +342,25 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
     }
   };
 
-  const downloadLogs = async () => {
-    try {
-      setLoading(true);
-      
-      const logRequest: LogRequest = {
-        machineId: machine.id,
-        ip: machine.ip,
-        sshUsername: machine.sshUsername,
-        sshPassword: machine.sshPassword,
-        liveMode: false,
-        applicationName: "aixp_ee"
-      };
-      
-      const rawLogs = await sshService.downloadRawLogs(logRequest);
-      
-      const blob = new Blob([rawLogs], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `logs-${machine.hostname}-${new Date().toISOString().split('T')[0]}.log`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      toast({
-        title: "Descărcare completă",
-        description: "Log-urile au fost descărcate cu succes în format brut."
-      });
-    } catch (error) {
-      console.error('Eroare la descărcarea log-urilor:', error);
-      toast({
-        title: "Eroare",
-        description: "Nu s-au putut descărca log-urile. Verificați conexiunea SSH.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
+  const downloadLogs = () => {
+    const formattedLogs = logs.map(log => 
+      log.originalLine || `[${formatDateTime(log.timestamp)}] [${log.level.toUpperCase()}] ${log.message}`
+    ).join('\n');
+    
+    const blob = new Blob([formattedLogs], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `logs-${machine.hostname}-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Descărcare completă",
+      description: "Log-urile au fost descărcate cu succes."
+    });
   };
 
   const scrollToBottom = () => {
@@ -615,4 +595,3 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
 };
 
 export default LogViewer;
-

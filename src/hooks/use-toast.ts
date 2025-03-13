@@ -1,18 +1,18 @@
-
-import { type ToastProps, type ToastActionElement } from "@/components/ui/toast"
 import * as React from "react"
 
-const TOAST_LIMIT = 5
-const TOAST_REMOVE_DELAY = 5000 // 5 seconds
+import type {
+  ToastActionElement,
+  ToastProps,
+} from "@/components/ui/toast"
 
-type ToasterToast = {
+const TOAST_LIMIT = 1
+const TOAST_REMOVE_DELAY = 1000000
+
+type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
-  variant?: "default" | "destructive"
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
 }
 
 const actionTypes = {
@@ -24,8 +24,8 @@ const actionTypes = {
 
 let count = 0
 
-function generateId() {
-  count = (count + 1) % Number.MAX_VALUE
+function genId() {
+  count = (count + 1) % Number.MAX_SAFE_INTEGER
   return count.toString()
 }
 
@@ -34,19 +34,19 @@ type ActionType = typeof actionTypes
 type Action =
   | {
       type: ActionType["ADD_TOAST"]
-      toast: Omit<ToasterToast, "id">
+      toast: ToasterToast
     }
   | {
       type: ActionType["UPDATE_TOAST"]
-      toast: Partial<ToasterToast> & { id: string }
+      toast: Partial<ToasterToast>
     }
   | {
       type: ActionType["DISMISS_TOAST"]
-      toastId?: string
+      toastId?: ToasterToast["id"]
     }
   | {
       type: ActionType["REMOVE_TOAST"]
-      toastId?: string
+      toastId?: ToasterToast["id"]
     }
 
 interface State {
@@ -55,18 +55,31 @@ interface State {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
-const reducer = (state: State, action: Action): State => {
+const addToRemoveQueue = (toastId: string) => {
+  if (toastTimeouts.has(toastId)) {
+    return
+  }
+
+  const timeout = setTimeout(() => {
+    toastTimeouts.delete(toastId)
+    dispatch({
+      type: "REMOVE_TOAST",
+      toastId: toastId,
+    })
+  }, TOAST_REMOVE_DELAY)
+
+  toastTimeouts.set(toastId, timeout)
+}
+
+export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
-    case actionTypes.ADD_TOAST:
+    case "ADD_TOAST":
       return {
         ...state,
-        toasts: [
-          ...state.toasts,
-          { id: generateId(), ...action.toast },
-        ].slice(0, TOAST_LIMIT),
+        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
       }
 
-    case actionTypes.UPDATE_TOAST:
+    case "UPDATE_TOAST":
       return {
         ...state,
         toasts: state.toasts.map((t) =>
@@ -74,20 +87,17 @@ const reducer = (state: State, action: Action): State => {
         ),
       }
 
-    case actionTypes.DISMISS_TOAST: {
+    case "DISMISS_TOAST": {
       const { toastId } = action
 
-      // Clear timeout when dismissing toast
+      // ! Side effects ! - This could be extracted into a dismissToast() action,
+      // but I'll keep it here for simplicity
       if (toastId) {
-        if (toastTimeouts.has(toastId)) {
-          clearTimeout(toastTimeouts.get(toastId))
-          toastTimeouts.delete(toastId)
-        }
+        addToRemoveQueue(toastId)
       } else {
-        for (const [id, timeout] of toastTimeouts.entries()) {
-          clearTimeout(timeout)
-          toastTimeouts.delete(id)
-        }
+        state.toasts.forEach((toast) => {
+          addToRemoveQueue(toast.id)
+        })
       }
 
       return {
@@ -102,7 +112,7 @@ const reducer = (state: State, action: Action): State => {
         ),
       }
     }
-    case actionTypes.REMOVE_TOAST:
+    case "REMOVE_TOAST":
       if (action.toastId === undefined) {
         return {
           ...state,
@@ -127,60 +137,32 @@ function dispatch(action: Action) {
   })
 }
 
-function dismissToast(toastId: string) {
-  dispatch({ type: actionTypes.DISMISS_TOAST, toastId })
-}
+type Toast = Omit<ToasterToast, "id">
 
-function removeToast(toastId: string) {
-  dispatch({ type: actionTypes.REMOVE_TOAST, toastId })
-}
+function toast({ ...props }: Toast) {
+  const id = genId()
 
-type ToastCreationProps = Omit<ToasterToast, "id">
-
-function toast(props: ToastCreationProps) {
-  const id = generateId()
-
-  const update = (props: Partial<ToasterToast>) =>
+  const update = (props: ToasterToast) =>
     dispatch({
-      type: actionTypes.UPDATE_TOAST,
+      type: "UPDATE_TOAST",
       toast: { ...props, id },
     })
+  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
-  const dismiss = () => {
-    dismissToast(id)
-    // Remove toast after animation
-    setTimeout(() => removeToast(id), 300)
-  }
-
-  // Dispatch the ADD_TOAST action with the onOpenChange callback that handles dismissal
   dispatch({
-    type: actionTypes.ADD_TOAST,
+    type: "ADD_TOAST",
     toast: {
       ...props,
+      id,
       open: true,
       onOpenChange: (open) => {
-        if (!open) {
-          dismiss()
-        }
-        // Call the original onOpenChange if provided
-        props.onOpenChange?.(open)
+        if (!open) dismiss()
       },
     },
   })
 
-  // Set up auto-dismiss timeout - directly use the ID from our scope
-  const timeoutId = setTimeout(() => {
-    dismissToast(id)
-    // Add a slight delay before removing from DOM
-    setTimeout(() => {
-      removeToast(id)
-    }, 300) // Animation duration
-  }, TOAST_REMOVE_DELAY)
-  
-  toastTimeouts.set(id, timeoutId)
-
   return {
-    id,
+    id: id,
     dismiss,
     update,
   }
@@ -196,27 +178,14 @@ function useToast() {
       if (index > -1) {
         listeners.splice(index, 1)
       }
-      
-      // Clean up any remaining timeouts when component unmounts
-      for (const [id, timeout] of toastTimeouts.entries()) {
-        clearTimeout(timeout)
-        toastTimeouts.delete(id)
-      }
     }
-  }, [])
+  }, [state])
 
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => {
-      if (toastId) {
-        dismissToast(toastId)
-        // Remove toast after animation
-        setTimeout(() => removeToast(toastId), 300)
-      }
-    },
+    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
   }
 }
 
 export { useToast, toast }
-export type { ToasterToast }

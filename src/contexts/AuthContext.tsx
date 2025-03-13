@@ -88,11 +88,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token?: string;
   }> => {
     try {
-      console.log("Sending login request for user:", username);
+      const clientIp = await fetch('https://api.ipify.org?format=json')
+        .then(response => response.json())
+        .then(data => data.ip)
+        .catch(() => 'unknown');
+      
+      console.log("Sending login request with IP:", clientIp);
       
       const response = await axios.post("/api/login", { 
         username, 
-        password
+        password,
+        ipAddress: clientIp
       });
 
       console.log("Login response from server:", response.data);

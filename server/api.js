@@ -817,69 +817,6 @@ app.post('/api/logs', (req, res) => {
   });
 });
 
-// Endpoint nou pentru obținerea log-urilor brute, nealterate
-app.post('/api/logs/raw', (req, res) => {
-  const { ip, sshUsername, sshPassword, applicationName } = req.body;
-  
-  if (!ip || !sshUsername || !sshPassword) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Lipsesc date necesare conexiunii SSH' 
-    });
-  }
-  
-  const conn = new Client();
-  const appName = applicationName || 'aixp_ee';
-  
-  // Comandă pentru obținerea log-urilor brute
-  const command = `journalctl -a -n 5000 -u ${appName} --no-pager`;
-  
-  let rawLogs = '';
-  
-  conn.on('ready', () => {
-    conn.exec(command, (err, stream) => {
-      if (err) {
-        conn.end();
-        return res.status(500).json({ error: `Eroare la executarea comenzii: ${err.message}` });
-      }
-      
-      stream.on('data', (data) => {
-        // Acumulăm datele brute, fără nicio procesare
-        rawLogs += data.toString();
-      });
-      
-      stream.stderr.on('data', (data) => {
-        // Adăugăm și erorile la output
-        rawLogs += data.toString();
-      });
-      
-      stream.on('close', () => {
-        conn.end();
-        
-        // Trimitem log-urile brute, fără nicio procesare
-        res.json({ 
-          success: true, 
-          rawLogs: rawLogs 
-        });
-      });
-      
-      stream.on('error', (streamErr) => {
-        conn.end();
-        res.status(500).json({ error: `Eroare în stream: ${streamErr.message}` });
-      });
-    });
-  }).on('error', (err) => {
-    console.error('Eroare la conexiunea SSH:', err);
-    res.status(500).json({ error: `Eroare la conexiunea SSH: ${err.message}` });
-  }).connect({
-    host: ip,
-    port: 22,
-    username: sshUsername,
-    password: sshPassword,
-    readyTimeout: 10000
-  });
-});
-
 // Endpoint pentru obținerea tuturor mașinilor
 app.get('/api/machines', authenticateToken, (req, res) => {
   try {

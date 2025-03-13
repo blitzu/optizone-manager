@@ -12,7 +12,6 @@ export const formatDateTime = (dateString: string): string => {
     const date = parseISO(dateString);
     
     // Formatare dată și oră cu fus orar specific (România)
-    // Added seconds to the format (HH:mm:ss)
     return formatInTimeZone(
       date,
       ROMANIA_TIMEZONE,
