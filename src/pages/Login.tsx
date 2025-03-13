@@ -32,11 +32,10 @@ const Login = () => {
     try {
       console.log("Attempting login for user:", username);
       
-      // Nu mai trimitem explicit IP-ul - serverul îl va detecta din conexiunea TCP
+      // Simplify login - let the server detect the IP
       const result = await login(username, password);
       
       console.log("Login result:", result);
-      console.log("User data with lastLogin info:", result.user);
       
       if (result.success) {
         toast({
@@ -55,7 +54,6 @@ const Login = () => {
         } else {
           console.log("No lastLogin data available in user object");
           
-          // Pentru prima autentificare sau când nu există date de autentificare anterioare
           toast({
             title: "Informații de autentificare",
             description: "Aceasta este prima dvs. autentificare sau nu există informații anterioare."
