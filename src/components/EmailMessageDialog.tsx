@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   Dialog,
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, CheckCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 
 interface EmailMessageDialogProps {
   open: boolean;
@@ -28,6 +30,7 @@ const EmailMessageDialog = ({
   requirePasswordChange,
 }: EmailMessageDialogProps) => {
   const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
   
   const appUrl = window.location.origin;
   
@@ -48,15 +51,23 @@ ${requirePasswordChange ? "La prima autentificare va trebui să-ți schimbi paro
 Cu stimă,
 `.trim();
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(emailMessage)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(err => {
-        console.error('Failed to copy text: ', err);
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(emailMessage);
+      setCopied(true);
+      toast({
+        title: "Mesaj copiat",
+        description: "Mesajul a fost copiat în clipboard",
       });
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      toast({
+        title: "Eroare",
+        description: "Nu s-a putut copia mesajul",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
