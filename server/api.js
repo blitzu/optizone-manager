@@ -153,7 +153,7 @@ function isAdmin(req, res, next) {
 
 // Endpoint pentru autentificare
 app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, ipAddress } = req.body;
   
   if (!username || !password) {
     return res.status(400).json({ 
@@ -161,6 +161,8 @@ app.post('/api/login', (req, res) => {
       message: 'Numele de utilizator și parola sunt obligatorii' 
     });
   }
+  
+  console.log(`Încercare de autentificare pentru utilizatorul: ${username}, IP: ${ipAddress || 'necunoscut'}`);
   
   const users = getUsers();
   const user = users.find(u => u.username === username);
@@ -216,6 +218,30 @@ app.post('/api/login', (req, res) => {
     });
   }
   
+  // Salvăm informațiile despre ultima autentificare
+  const currentDate = new Date().toISOString();
+  const lastLogin = {
+    date: currentDate,
+    ipAddress: ipAddress || 'necunoscut'
+  };
+  
+  console.log(`Salvare informații de login pentru ${username}:`, lastLogin);
+  
+  // Actualizăm utilizatorul cu informațiile de login
+  const updatedUser = {
+    ...user,
+    lastLogin: lastLogin,
+    lastLoginDate: currentDate, // Pentru compatibilitate cu versiuni anterioare
+    lastLoginIp: ipAddress || 'necunoscut' // Pentru compatibilitate cu versiuni anterioare
+  };
+  
+  // Actualizăm lista de utilizatori
+  const updatedUsers = users.map(u => 
+    u.id === user.id ? updatedUser : u
+  );
+  
+  saveUsers(updatedUsers);
+  
   // Generăm token-ul JWT pentru autentificare
   const token = jwt.sign(
     { id: user.id, username: user.username, role: user.role },
@@ -223,14 +249,20 @@ app.post('/api/login', (req, res) => {
     { expiresIn: '24h' }
   );
   
+  // Pregătim utilizatorul pentru răspuns
+  const userResponse = {
+    id: updatedUser.id,
+    username: updatedUser.username,
+    role: updatedUser.role,
+    lastLogin: lastLogin
+  };
+  
+  console.log(`Utilizatorul ${username} s-a autentificat cu succes. Informații de login:`, lastLogin);
+  
   res.json({
     success: true,
     token,
-    user: {
-      id: user.id,
-      username: user.username,
-      role: user.role
-    }
+    user: userResponse
   });
 });
 
@@ -334,13 +366,23 @@ app.post('/api/change-password', authenticateToken, (req, res) => {
 app.get('/api/users', authenticateToken, isAdmin, (req, res) => {
   const users = getUsers();
   
-  // Returnăm utilizatorii fără parole
-  const sanitizedUsers = users.map(u => ({
-    id: u.id,
-    username: u.username,
-    role: u.role,
-    requirePasswordChange: !!u.requirePasswordChange
-  }));
+  // Returnăm utilizatorii fără parole, dar cu informații despre ultima autentificare
+  const sanitizedUsers = users.map(u => {
+    const lastLogin = u.lastLogin || (u.lastLoginDate ? {
+      date: u.lastLoginDate,
+      ipAddress: u.lastLoginIp || 'necunoscut'
+    } : null);
+    
+    return {
+      id: u.id,
+      username: u.username,
+      role: u.role,
+      requirePasswordChange: !!u.requirePasswordChange,
+      lastLogin: lastLogin,
+      lastLoginDate: u.lastLoginDate, // Pentru compatibilitate
+      lastLoginIp: u.lastLoginIp // Pentru compatibilitate
+    };
+  });
   
   res.json({
     success: true,

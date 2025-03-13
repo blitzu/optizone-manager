@@ -52,6 +52,12 @@ const Login = () => {
           });
         } else {
           console.log("No lastLogin data available in user object");
+          
+          // Pentru prima autentificare sau când nu există date de autentificare anterioare
+          toast({
+            title: "Informații de autentificare",
+            description: "Aceasta este prima dvs. autentificare sau nu există informații anterioare."
+          });
         }
         
         // Immediately navigate to home
@@ -141,6 +147,14 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Parolă</Label>
+                <Button 
+                  variant="link" 
+                  className="px-0 font-normal text-xs text-blue-600" 
+                  type="button"
+                  onClick={handleForgotPassword}
+                >
+                  Ai uitat parola?
+                </Button>
               </div>
               <Input
                 id="password"
