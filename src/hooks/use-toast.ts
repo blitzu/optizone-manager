@@ -127,14 +127,6 @@ function dispatch(action: Action) {
   })
 }
 
-function dismissToast(toastId: string) {
-  dispatch({ type: actionTypes.DISMISS_TOAST, toastId })
-}
-
-function removeToast(toastId: string) {
-  dispatch({ type: actionTypes.REMOVE_TOAST, toastId })
-}
-
 type ToastCreationProps = Omit<ToasterToast, "id">
 
 function toast(props: ToastCreationProps) {
@@ -146,35 +138,23 @@ function toast(props: ToastCreationProps) {
       toast: { ...props, id },
     })
 
-  const dismiss = () => {
-    dismissToast(id)
-    // Remove toast after animation
-    setTimeout(() => removeToast(id), 300)
-  }
+  const dismiss = () => dismissToast(id)
 
-  // Dispatch the ADD_TOAST action with the onOpenChange callback that handles dismissal
   dispatch({
     type: actionTypes.ADD_TOAST,
     toast: {
       ...props,
+      id,
       open: true,
       onOpenChange: (open) => {
-        if (!open) {
-          dismiss()
-        }
-        // Call the original onOpenChange if provided
-        props.onOpenChange?.(open)
+        if (!open) dismiss()
       },
     },
   })
 
-  // Set up auto-dismiss timeout - directly use the ID from our scope
+  // Set up auto-dismiss timeout
   const timeoutId = setTimeout(() => {
     dismissToast(id)
-    // Add a slight delay before removing from DOM
-    setTimeout(() => {
-      removeToast(id)
-    }, 300) // Animation duration
   }, TOAST_REMOVE_DELAY)
   
   toastTimeouts.set(id, timeoutId)
@@ -184,6 +164,21 @@ function toast(props: ToastCreationProps) {
     dismiss,
     update,
   }
+}
+
+function dismissToast(toastId: string) {
+  dispatch({
+    type: actionTypes.DISMISS_TOAST,
+    toastId,
+  })
+
+  // Add a slight delay before removing from DOM to allow animation
+  setTimeout(() => {
+    dispatch({
+      type: actionTypes.REMOVE_TOAST,
+      toastId,
+    })
+  }, 300) // Animation duration
 }
 
 function useToast() {
@@ -211,8 +206,6 @@ function useToast() {
     dismiss: (toastId?: string) => {
       if (toastId) {
         dismissToast(toastId)
-        // Remove toast after animation
-        setTimeout(() => removeToast(toastId), 300)
       }
     },
   }
