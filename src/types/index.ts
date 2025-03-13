@@ -5,6 +5,7 @@ export interface Machine {
   hostname: string;
   sshUsername?: string;
   sshPassword?: string;
+  userId?: string; // Added to associate machines with users
 }
 
 export interface LogRequest {
@@ -52,4 +53,12 @@ export interface AuthState {
 export interface SSHConnectionResult {
   success: boolean;
   message: string;
+}
+
+// Added for machine management API responses
+export interface MachineResponse {
+  success: boolean;
+  message?: string;
+  machine?: Machine;
+  machines?: Machine[];
 }

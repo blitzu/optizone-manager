@@ -13,40 +13,46 @@ import { sshService } from "@/services/sshService";
 import { toast } from "@/components/ui/use-toast";
 import { appConfig } from "@/config/appConfig";
 
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 const Index = () => {
   const { currentUser, logout } = useAuth();
   const isAdmin = currentUser?.role === "admin";
 
-  const [machines, setMachines] = useState<Machine[]>(() => {
-    const saved = localStorage.getItem("optizone-machines");
-    const parsedMachines = saved ? JSON.parse(saved) : [];
-    
-    // Asigură-te că toate mașinile au credențialele SSH implicite setate
-    return parsedMachines.map((machine: Machine) => ({
-      ...machine,
-      sshUsername: machine.sshUsername || appConfig.defaultSshUsername,
-      sshPassword: machine.sshPassword || appConfig.defaultSshPassword
-    }));
-  });
-
+  const [machines, setMachines] = useState<Machine[]>([]);
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
 
-  // Actualizăm mașinile existente la prima încărcare pentru a avea credențialele SSH implicite
+  // Initialize machines from server
   useEffect(() => {
-    if (machines.length > 0) {
-      const updatedMachines = machines.map(machine => ({
-        ...machine,
-        sshUsername: machine.sshUsername || appConfig.defaultSshUsername,
-        sshPassword: machine.sshPassword || appConfig.defaultSshPassword
-      }));
-      
-      saveMachines(updatedMachines);
-    }
+    const fetchMachines = async () => {
+      try {
+        const response = await fetch(`${API_URL}/machines`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch machines');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success && data.machines) {
+          setMachines(data.machines);
+        } else {
+          console.error("Error fetching machines:", data.message);
+        }
+      } catch (error) {
+        console.error("Error fetching machines:", error);
+      }
+    };
+    
+    fetchMachines();
   }, []);
 
   const saveMachines = (updatedMachines: Machine[]) => {
     setMachines(updatedMachines);
-    localStorage.setItem("optizone-machines", JSON.stringify(updatedMachines));
   };
 
   const testSshConnection = async (machine: Machine) => {

@@ -8,12 +8,13 @@ interface LoginResponse {
   requirePasswordChange?: boolean;
   tempToken?: string;
   user?: User;
+  message?: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   currentUser: User | null;
-  login: (username: string, password: string) => LoginResponse;
+  login: (username: string, password: string) => Promise<LoginResponse>;
   logout: () => void;
   changePassword: (oldPassword: string, newPassword: string) => Promise<boolean>;
   getAllUsers: () => Promise<User[]>;
@@ -42,14 +43,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (authState.isAuthenticated && authState.currentUser) {
         try {
           // Verify if the token is still valid with the server
-          const response = await axios.get(`${API_URL}/verify-auth`, {
+          const response = await fetch(`${API_URL}/verify-auth`, {
             headers: {
               Authorization: `Bearer ${localStorage.getItem('auth-token')}`
             }
           });
           
-          if (!response.data.valid) {
+          if (!response.ok) {
             // If token is invalid, logout
+            logout();
+            return;
+          }
+          
+          const data = await response.json();
+          if (!data.valid) {
             logout();
           }
         } catch (error) {
@@ -62,95 +69,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuthStatus();
   }, []);
 
-  const login = (username: string, password: string): LoginResponse => {
-    // This will be replaced with server API call in the future
-    // For now, I'll implement a mock that simulates the expected response structure
+  const login = async (username: string, password: string): Promise<LoginResponse> => {
     try {
       // Make API call to login endpoint
-      fetch(`${API_URL}/login`, {
+      const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, password }),
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // Store auth token if provided
-          if (data.token) {
-            localStorage.setItem('auth-token', data.token);
-          }
-          
-          const user = data.user;
-          const newState = { isAuthenticated: true, currentUser: user };
-          setAuthState(newState);
-          localStorage.setItem(AUTH_STATE_KEY, JSON.stringify(newState));
-          
-          if (!data.requirePasswordChange) {
-            toast({
-              title: "Autentificare reușită",
-              description: `Bine ai venit, ${username}!`,
-            });
-          }
-          
-          return {
-            success: true,
-            requirePasswordChange: data.requirePasswordChange,
-            tempToken: data.tempToken,
-            user: user
-          };
-        } else {
-          toast({
-            title: "Autentificare eșuată",
-            description: data.message || "Nume de utilizator sau parolă incorecte.",
-            variant: "destructive",
-          });
-          return { success: false };
-        }
-      })
-      .catch(error => {
-        console.error("Login error:", error);
-        toast({
-          title: "Eroare de conexiune",
-          description: "Nu s-a putut conecta la server.",
-          variant: "destructive",
-        });
-        return { success: false };
       });
       
-      // For backwards compatibility during development, fall back to local storage
-      const savedUsers = localStorage.getItem("optizone-users");
-      const users = savedUsers ? JSON.parse(savedUsers) : [];
-      const user = users.find(
-        (u: User) => u.username === username && u.password === password
-      );
-
-      if (user) {
+      const data = await response.json();
+      
+      if (data.success) {
+        // Store auth token if provided
+        if (data.token) {
+          localStorage.setItem('auth-token', data.token);
+        }
+        
+        const user = data.user;
         const newState = { isAuthenticated: true, currentUser: user };
         setAuthState(newState);
         localStorage.setItem(AUTH_STATE_KEY, JSON.stringify(newState));
+        
+        if (!data.requirePasswordChange) {
+          toast({
+            title: "Autentificare reușită",
+            description: `Bine ai venit, ${username}!`,
+          });
+        }
+        
+        return {
+          success: true,
+          requirePasswordChange: data.requirePasswordChange,
+          tempToken: data.tempToken,
+          user: user
+        };
+      } else {
         toast({
-          title: "Autentificare reușită",
-          description: `Bine ai venit, ${username}!`,
+          title: "Autentificare eșuată",
+          description: data.message || "Nume de utilizator sau parolă incorecte.",
+          variant: "destructive",
         });
-        return { success: true, user };
+        return { 
+          success: false,
+          message: data.message || "Nume de utilizator sau parolă incorecte."
+        };
       }
-      
-      toast({
-        title: "Autentificare eșuată",
-        description: "Nume de utilizator sau parolă incorecte.",
-        variant: "destructive",
-      });
-      return { success: false };
     } catch (error) {
-      console.error("Error in login:", error);
+      console.error("Login error:", error);
       toast({
-        title: "Eroare",
-        description: "A apărut o eroare la autentificare.",
+        title: "Eroare de conexiune",
+        description: "Nu s-a putut conecta la server.",
         variant: "destructive",
       });
-      return { success: false };
+      return { 
+        success: false,
+        message: "Nu s-a putut conecta la server."
+      };
     }
   };
 

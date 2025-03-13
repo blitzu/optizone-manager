@@ -14,7 +14,7 @@ const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loginError, setLoginError] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
   
@@ -25,24 +25,30 @@ const Login = () => {
   const [passwordError, setPasswordError] = useState("");
   const [tempToken, setTempToken] = useState("");
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setLoginError(false);
+    setLoginError(null);
     
-    const loginResult = login(username, password);
-    
-    setIsSubmitting(false);
-    if (loginResult.success) {
-      if (loginResult.requirePasswordChange) {
-        // Show password change dialog if user needs to change password
-        setTempToken(loginResult.tempToken || "");
-        setShowChangePasswordDialog(true);
+    try {
+      const loginResult = await login(username, password);
+      
+      setIsSubmitting(false);
+      if (loginResult.success) {
+        if (loginResult.requirePasswordChange) {
+          // Show password change dialog if user needs to change password
+          setTempToken(loginResult.tempToken || "");
+          setShowChangePasswordDialog(true);
+        } else {
+          navigate("/");
+        }
       } else {
-        navigate("/");
+        setLoginError(loginResult.message || "Nume de utilizator sau parolă incorecte.");
       }
-    } else {
-      setLoginError(true);
+    } catch (error) {
+      setIsSubmitting(false);
+      setLoginError("Eroare la conectarea cu serverul. Încercați din nou mai târziu.");
+      console.error("Login error:", error);
     }
   };
   
@@ -57,6 +63,8 @@ const Login = () => {
       return;
     }
     
+    setPasswordError("");
+    
     // Call API to change password
     fetch(`${import.meta.env.VITE_API_URL || '/api'}/change-temp-password`, {
       method: 'POST',
@@ -70,15 +78,20 @@ const Login = () => {
       }),
     })
     .then(response => response.json())
-    .then(data => {
+    .then(async data => {
       if (data.success) {
         setShowChangePasswordDialog(false);
         // Re-login with new password
-        const loginResult = login(username, newPassword);
-        if (loginResult.success) {
-          navigate("/");
-        } else {
-          setLoginError(true);
+        try {
+          const loginResult = await login(username, newPassword);
+          if (loginResult.success) {
+            navigate("/");
+          } else {
+            setLoginError(loginResult.message || "Autentificare eșuată după schimbarea parolei.");
+          }
+        } catch (error) {
+          console.error("Error logging in after password change:", error);
+          setLoginError("Eroare la reconectare după schimbarea parolei.");
         }
       } else {
         setPasswordError(data.message || "Eroare la schimbarea parolei.");
@@ -105,7 +118,7 @@ const Login = () => {
               <Alert variant="destructive" className="py-2">
                 <ExclamationTriangleIcon className="h-4 w-4" />
                 <AlertDescription>
-                  Autentificare eșuată. Verificați datele de autentificare și încercați din nou.
+                  {loginError}
                 </AlertDescription>
               </Alert>
             )}

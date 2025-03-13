@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { Machine } from "@/types";
+import { useState, useEffect } from "react";
+import { Machine, MachineResponse } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Edit, Trash2, Server, Terminal } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { appConfig } from "@/config/appConfig";
 import { sshService } from "@/services/sshService";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MachineManagerProps {
   machines: Machine[];
@@ -17,6 +18,8 @@ interface MachineManagerProps {
   selectedMachine: Machine | null;
   setSelectedMachine: (machine: Machine | null) => void;
 }
+
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const MachineManager = ({ 
   machines, 
@@ -32,6 +35,48 @@ const MachineManager = ({
     sshPassword: appConfig.defaultSshPassword
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    fetchMachines();
+  }, []);
+
+  const fetchMachines = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/machines`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch machines');
+      }
+      
+      const data: MachineResponse = await response.json();
+      
+      if (data.success && data.machines) {
+        saveMachines(data.machines);
+      } else {
+        toast({
+          title: "Eroare",
+          description: data.message || "Nu s-au putut încărca mașinile.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching machines:", error);
+      toast({
+        title: "Eroare de conexiune",
+        description: "Nu s-a putut conecta la server pentru a încărca mașinile.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const resetForm = () => {
     setCurrentMachine({
@@ -58,7 +103,7 @@ const MachineManager = ({
     setDialogOpen(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!currentMachine.ip || !currentMachine.hostname) {
       toast({
         title: "Câmpuri obligatorii",
@@ -68,49 +113,126 @@ const MachineManager = ({
       return;
     }
 
-    if (isEditing) {
-      const updatedMachines = machines.map(m => 
-        m.id === currentMachine.id ? { ...currentMachine as Machine } : m
-      );
-      saveMachines(updatedMachines);
+    try {
+      let response;
       
-      if (selectedMachine?.id === currentMachine.id) {
-        setSelectedMachine(currentMachine as Machine);
+      if (isEditing) {
+        // Update machine
+        response = await fetch(`${API_URL}/machines/${currentMachine.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+          },
+          body: JSON.stringify(currentMachine)
+        });
+      } else {
+        // Add new machine
+        response = await fetch(`${API_URL}/machines`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+          },
+          body: JSON.stringify(currentMachine)
+        });
       }
       
-      toast({
-        title: "Mașină actualizată",
-        description: `Mașina ${currentMachine.hostname} a fost actualizată cu succes.`
-      });
-    } else {
-      const newMachine: Machine = {
-        ...currentMachine as Omit<Machine, 'id'>,
-        id: Date.now().toString()
-      };
+      if (!response.ok) {
+        throw new Error('Failed to save machine');
+      }
       
-      saveMachines([...machines, newMachine]);
+      const data: MachineResponse = await response.json();
+      
+      if (data.success) {
+        if (isEditing) {
+          // Update existing machine in the list
+          const updatedMachines = machines.map(m => 
+            m.id === currentMachine.id ? { ...data.machine as Machine } : m
+          );
+          saveMachines(updatedMachines);
+          
+          if (selectedMachine?.id === currentMachine.id) {
+            setSelectedMachine(data.machine as Machine);
+          }
+          
+          toast({
+            title: "Mașină actualizată",
+            description: `Mașina ${currentMachine.hostname} a fost actualizată cu succes.`
+          });
+        } else {
+          // Add new machine to the list
+          if (data.machine) {
+            saveMachines([...machines, data.machine]);
+            toast({
+              title: "Mașină adăugată",
+              description: `Mașina ${data.machine.hostname} a fost adăugată cu succes.`
+            });
+          }
+        }
+        
+        // Reset form and close dialog
+        setDialogOpen(false);
+        resetForm();
+      } else {
+        toast({
+          title: "Eroare",
+          description: data.message || "Nu s-a putut salva mașina.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error saving machine:", error);
       toast({
-        title: "Mașină adăugată",
-        description: `Mașina ${newMachine.hostname} a fost adăugată cu succes.`
+        title: "Eroare de conexiune",
+        description: "Nu s-a putut conecta la server pentru a salva mașina.",
+        variant: "destructive"
       });
     }
-    
-    setDialogOpen(false);
-    resetForm();
   };
 
-  const handleDelete = (id: string) => {
-    if (selectedMachine?.id === id) {
-      setSelectedMachine(null);
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}/machines/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete machine');
+      }
+      
+      const data: MachineResponse = await response.json();
+      
+      if (data.success) {
+        if (selectedMachine?.id === id) {
+          setSelectedMachine(null);
+        }
+        
+        const updatedMachines = machines.filter(m => m.id !== id);
+        saveMachines(updatedMachines);
+        
+        toast({
+          title: "Mașină ștearsă",
+          description: "Mașina a fost ștearsă cu succes."
+        });
+      } else {
+        toast({
+          title: "Eroare",
+          description: data.message || "Nu s-a putut șterge mașina.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting machine:", error);
+      toast({
+        title: "Eroare de conexiune",
+        description: "Nu s-a putut conecta la server pentru a șterge mașina.",
+        variant: "destructive"
+      });
     }
-    
-    const updatedMachines = machines.filter(m => m.id !== id);
-    saveMachines(updatedMachines);
-    
-    toast({
-      title: "Mașină ștearsă",
-      description: "Mașina a fost ștearsă cu succes."
-    });
   };
 
   const handleSelectMachine = (machine: Machine) => {
@@ -146,6 +268,22 @@ const MachineManager = ({
       });
     }
   };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Mașini</CardTitle>
+        </CardHeader>
+        <CardContent className="flex justify-center py-8">
+          <div className="text-center">
+            <Server className="mx-auto h-12 w-12 opacity-30 mb-2 animate-pulse" />
+            <p>Se încarcă mașinile...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
