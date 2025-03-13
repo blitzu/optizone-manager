@@ -20,6 +20,7 @@ interface EmailMessageDialogProps {
   username: string;
   password: string | null;
   requirePasswordChange: boolean;
+  role?: string;
 }
 
 const EmailMessageDialog = ({
@@ -28,11 +29,15 @@ const EmailMessageDialog = ({
   username,
   password,
   requirePasswordChange,
+  role = "user",
 }: EmailMessageDialogProps) => {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   
   const appUrl = window.location.origin;
+  
+  // Format the role for display in the email
+  const formattedRole = role === "admin" ? "Administrator" : "Utilizator standard";
   
   const emailMessage = `
 Bună,
@@ -44,6 +49,7 @@ Poți accesa aplicația la adresa: ${appUrl}
 Detalii de autentificare:
 Utilizator: ${username}
 Parolă: ${password}
+Rol în aplicație: ${formattedRole}
 ${requirePasswordChange ? "La prima autentificare va trebui să-ți schimbi parola." : ""}
 
 În caz că întâmpini probleme cu autentificarea, te rog să mă contactezi.

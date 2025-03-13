@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,10 +60,16 @@ const UserManagement = () => {
   const [generateRandomPassword, setGenerateRandomPassword] = useState(false);
   const [requirePasswordChange, setRequirePasswordChange] = useState(true);
   const [showEmailMessageDialog, setShowEmailMessageDialog] = useState(false);
-  const [newUserData, setNewUserData] = useState<{username: string, password: string | null, requirePasswordChange: boolean}>({
+  const [newUserData, setNewUserData] = useState<{
+    username: string;
+    password: string | null;
+    requirePasswordChange: boolean;
+    role: UserRole;
+  }>({
     username: "",
     password: null,
-    requirePasswordChange: true
+    requirePasswordChange: true,
+    role: "user"
   });
 
   useEffect(() => {
@@ -106,11 +111,12 @@ const UserManagement = () => {
       const success = await createUser(username, finalPassword, role, requirePasswordChange);
       
       if (success) {
-        // Show email message dialog with user data
+        // Show email message dialog with user data including role
         setNewUserData({
           username: username,
           password: finalPassword,
-          requirePasswordChange: requirePasswordChange
+          requirePasswordChange: requirePasswordChange,
+          role: role
         });
         setShowEmailMessageDialog(true);
         
@@ -170,11 +176,12 @@ const UserManagement = () => {
       const success = await changeUserPassword(userToManage.id, finalPassword, requirePasswordChange);
       
       if (success) {
-        // Show email message dialog with user data
+        // Show email message dialog with user data including role
         setNewUserData({
           username: userToManage.username,
           password: finalPassword,
-          requirePasswordChange: requirePasswordChange
+          requirePasswordChange: requirePasswordChange,
+          role: userToManage.role
         });
         setShowEmailMessageDialog(true);
         
@@ -473,6 +480,7 @@ const UserManagement = () => {
         username={newUserData.username}
         password={newUserData.password}
         requirePasswordChange={newUserData.requirePasswordChange}
+        role={newUserData.role}
       />
     </div>
   );
