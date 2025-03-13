@@ -8,7 +8,9 @@ import {
   Terminal as TerminalIcon, 
   FileText,
   RefreshCw,
-  ArrowDown
+  ArrowDown,
+  PauseCircle,
+  PlayCircle
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatDateTime } from "@/utils/dateUtils";
@@ -22,7 +24,7 @@ interface LogViewerProps {
 const LogViewer = ({ machine }: LogViewerProps) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [liveMode, setLiveMode] = useState(false);
+  const [liveMode, setLiveMode] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
   const [terminalCommand, setTerminalCommand] = useState<string>("");
   const [terminalOutput, setTerminalOutput] = useState<string>("");
@@ -36,41 +38,11 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const terminalInputRef = useRef<HTMLInputElement>(null);
   const terminalOutputRef = useRef<HTMLDivElement>(null);
 
-  // MobaXterm color scheme mapping based on log types
-  const getColorForType = (type: string): string => {
-    if (type === "EE") return "text-mobaxterm-red";
-    if (type === "MQ") return "text-mobaxterm-magenta";
-    if (type === "DE") return "text-mobaxterm-yellow";
-    if (type === "NO") return "text-mobaxterm-cyan";
-    if (type === "MAIN") return "text-mobaxterm-green";
-    if (type === "WARNING") return "text-mobaxterm-yellow";
-    return "text-mobaxterm-white";
-  };
-
-  // Custom color for specific log formats
-  const getColorForSpecialLine = (line: string): string | null => {
-    if (line.includes("[MAIN][WARNING]")) return "text-mobaxterm-yellow";
-    if (line.includes("stop-resumes")) return "text-mobaxterm-red";
-    return null;
-  };
-
-  // Get text color for log level
-  const getLevelColor = (level: LogEntry['level']) => {
-    switch (level) {
-      case "error": return "text-mobaxterm-red";
-      case "warning": return "text-mobaxterm-yellow";
-      case "debug": return "text-mobaxterm-blue";
-      default: return "text-mobaxterm-white";
-    }
-  };
-
-  // Get color for array values based on MobaXterm style
-  const getArrayValueColor = (value: string) => {
-    if (value === "'gema'") return "text-mobaxterm-green";
-    if (value === "None") return "text-mobaxterm-brightBlack";
-    if (value.startsWith("'CVP-") || value.startsWith("'LPR-")) return "text-mobaxterm-cyan";
-    if (value === "'VIEW_SCENE_01'") return "text-mobaxterm-yellow";
-    if (value.includes("-vs'")) return "text-mobaxterm-cyan";
+  const getTextColor = (text: string): string => {
+    if (text.includes("[EE]")) return "text-mobaxterm-red";
+    if (text.includes("[WARNING]")) return "text-mobaxterm-yellow";
+    if (text.includes("[DEBUG]")) return "text-mobaxterm-blue";
+    if (text.includes("[INFO]")) return "text-mobaxterm-green";
     return "text-mobaxterm-white";
   };
 
@@ -104,11 +76,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const showLiveLog = () => {
-    setActiveView("logs");
-    startLiveMode();
   };
 
   const startLiveMode = () => {
@@ -170,16 +137,22 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     }
   };
 
+  const toggleLiveMode = () => {
+    if (liveMode) {
+      stopLiveMode();
+    } else {
+      startLiveMode();
+    }
+  };
+
   const executeCommand = async () => {
     if (!terminalCommand.trim()) return;
     
     setIsExecuting(true);
-    // Add command to terminal output
     setTerminalOutput(prev => 
       prev + `\n$ ${terminalCommand}\n`
     );
     
-    // Add to history
     setTerminalHistory(prev => [...prev, terminalCommand]);
     setHistoryIndex(-1);
     
@@ -191,14 +164,12 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         command: terminalCommand
       });
       
-      // Update terminal output with command result
       setTerminalOutput(prev => 
         prev + `${response.output}\n`
       );
       
     } catch (error) {
       console.error('Eroare la executarea comenzii:', error);
-      // Update terminal output with error
       setTerminalOutput(prev => 
         prev + `Eroare: ${error.message || 'Nu s-a putut executa comanda'}\n`
       );
@@ -261,7 +232,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   };
 
   const handleTerminalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Handle Up Arrow for history
     if (e.key === "ArrowUp") {
       e.preventDefault();
       if (terminalHistory.length > 0 && historyIndex < terminalHistory.length - 1) {
@@ -269,9 +239,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         setHistoryIndex(newIndex);
         setTerminalCommand(terminalHistory[terminalHistory.length - 1 - newIndex]);
       }
-    }
-    // Handle Down Arrow for history
-    else if (e.key === "ArrowDown") {
+    } else if (e.key === "ArrowDown") {
       e.preventDefault();
       if (historyIndex > 0) {
         const newIndex = historyIndex - 1;
@@ -281,9 +249,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         setHistoryIndex(-1);
         setTerminalCommand("");
       }
-    }
-    // Handle Enter key
-    else if (e.key === "Enter" && !isExecuting) {
+    } else if (e.key === "Enter" && !isExecuting) {
       e.preventDefault();
       executeCommand();
     }
@@ -317,6 +283,13 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     }
   };
 
+  const toggleAutoScroll = () => {
+    setAutoScroll(prev => !prev);
+    if (!autoScroll) {
+      scrollToBottom();
+    }
+  };
+
   const scrollTerminalToBottom = () => {
     if (terminalOutputRef.current) {
       const container = terminalOutputRef.current;
@@ -337,9 +310,9 @@ const LogViewer = ({ machine }: LogViewerProps) => {
 
   useEffect(() => {
     stopLiveMode();
-    fetchLogData();
+    setLogs([]);
+    startLiveMode();
     
-    // Clear terminal output when changing machines
     setTerminalOutput("");
     setTerminalHistory([]);
     setHistoryIndex(-1);
@@ -349,139 +322,13 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     };
   }, [machine.id]);
 
-  const parseMobaxtermLogLine = (logLine: string) => {
-    // Handle [EE] format
-    const eeRegex = /\[EE\]\[([^\]]+)\]\[([^\]]+)\]\[([^\]]+)\]\s+(\d+):\s+(.+)/;
-    const eeMatch = logLine.match(eeRegex);
+  const renderRawLogLine = (log: LogEntry, index: number) => {
+    const logText = log.originalLine || `[${formatDateTime(log.timestamp)}] [${log.level.toUpperCase()}] ${log.message}`;
+    const textColor = getTextColor(logText);
     
-    if (eeMatch) {
-      const [_, timestamp, type1, type2, pid, content] = eeMatch;
-      return { timestamp, type1, type2, pid, content };
-    }
-    
-    // Handle standard format with timestamp, level, component
-    const standardRegex = /\[([^\]]+)\]\s+\[([^\]]+)\]\s+\[([^\]]+)\]\s+(.+)/;
-    const standardMatch = logLine.match(standardRegex);
-    
-    if (standardMatch) {
-      const [_, timestamp, level, component, message] = standardMatch;
-      return { timestamp, level, component, message };
-    }
-    
-    return null;
-  };
-
-  const renderArrayValues = (content: string) => {
-    // Match array format like: ['gema', 'CVP-12-1', 'VIEW_SCENE_01', 'CVP-12-1-vs']
-    if (content.startsWith('[') && content.endsWith(']')) {
-      try {
-        // Remove the outer brackets and split by commas
-        const innerContent = content.substring(1, content.length - 1);
-        const values = innerContent.split(',').map(v => v.trim());
-        
-        return (
-          <span className="flex items-center">
-            <span className="text-mobaxterm-magenta">[</span>
-            {values.map((value, i) => (
-              <span key={i}>
-                <span className={getArrayValueColor(value)}>{value}</span>
-                {i < values.length - 1 && <span className="text-mobaxterm-brightBlack">, </span>}
-              </span>
-            ))}
-            <span className="text-mobaxterm-magenta">]</span>
-          </span>
-        );
-      } catch (e) {
-        return <span>{content}</span>;
-      }
-    }
-    
-    return <span>{content}</span>;
-  };
-
-  const renderExactMobaxtermLogLine = (log: LogEntry, index: number) => {
-    // First check if we have the original line to render in exact format
-    if (log.originalLine) {
-      // Special case for EE logs with red color
-      if (log.originalLine.startsWith('[EE]')) {
-        // Extract parts with regex
-        const parts = log.originalLine.match(/\[EE\]\[([^\]]+)\]\[([^\]]+)\]\[([^\]]+)\]\s+(\d+):\s+(.+)/);
-        
-        if (parts) {
-          const [_, timestamp, type1, type2, pid, content] = parts;
-          
-          return (
-            <div key={index} className="mb-1 font-mono flex flex-wrap whitespace-nowrap">
-              <span className="text-mobaxterm-red">[EE]</span>
-              <span className="text-mobaxterm-brightBlack">[{timestamp}]</span>
-              <span className={getColorForType(type1)}>[{type1}]</span>
-              <span className={getColorForType(type2)}>[{type2}]</span>
-              <span className="text-mobaxterm-brightBlack">{pid}: </span>
-              {renderArrayValues(content)}
-            </div>
-          );
-        }
-        
-        // If regex doesn't match, render the line in red
-        return (
-          <div key={index} className="mb-1 font-mono text-mobaxterm-red">
-            {log.originalLine}
-          </div>
-        );
-      }
-      
-      // Special case for log with WARNING
-      const specialColor = getColorForSpecialLine(log.originalLine);
-      if (specialColor) {
-        return (
-          <div key={index} className={`mb-1 font-mono ${specialColor}`}>
-            {log.originalLine}
-          </div>
-        );
-      }
-      
-      // For standard format logs
-      if (log.originalLine.match(/\[[^\]]+\]\s+\[[^\]]+\]\s+\[[^\]]+\]/)) {
-        try {
-          // Extract components based on bracket pattern
-          const components = log.originalLine.match(/\[([^\]]+)\]/g);
-          if (components && components.length >= 3) {
-            const remainingParts = log.originalLine.split(components[2])[1].trim();
-            
-            return (
-              <div key={index} className="mb-1 font-mono flex flex-wrap whitespace-nowrap">
-                <span className="text-mobaxterm-brightBlack">{components[0]}</span>
-                <span className={`${getLevelColor(log.level)}`}>{components[1]}</span>
-                <span className="text-mobaxterm-cyan">{components[2]}</span>
-                <span className="ml-1">{renderArrayValues(remainingParts)}</span>
-              </div>
-            );
-          }
-        } catch (e) {
-          console.error("Error parsing log line:", e);
-        }
-      }
-      
-      return (
-        <div key={index} className="mb-1 font-mono text-mobaxterm-white">
-          {log.originalLine}
-        </div>
-      );
-    }
-    
-    // Default rendering for logs without originalLine
     return (
-      <div key={index} className={`mb-1 font-mono ${getLevelColor(log.level)}`}>
-        <span className="text-mobaxterm-brightBlack">
-          [{formatDateTime(log.timestamp)}]
-        </span>{' '}
-        <span className={`font-semibold ${getLevelColor(log.level)}`}>
-          [{log.level.toUpperCase()}]
-        </span>{' '}
-        <span className="text-mobaxterm-cyan">
-          [{log.syslogIdentifier || "system"}]
-        </span>{' '}
-        <span>{log.message}</span>
+      <div key={index} className={`mb-1 font-mono ${textColor}`}>
+        {logText}
       </div>
     );
   };
@@ -502,7 +349,10 @@ const LogViewer = ({ machine }: LogViewerProps) => {
             </Button>
             <Button 
               variant="outline" 
-              onClick={showLiveLog}
+              onClick={() => {
+                setActiveView("logs");
+                if (!liveMode) startLiveMode();
+              }}
               className={activeView === "logs" && liveMode ? "bg-secondary" : ""}
             >
               <FileText className="h-4 w-4 mr-2" />
@@ -510,7 +360,30 @@ const LogViewer = ({ machine }: LogViewerProps) => {
             </Button>
             <Button 
               variant="outline" 
-              onClick={restartEEService}
+              onClick={toggleLiveMode}
+              className={liveMode ? "bg-secondary" : ""}
+            >
+              {liveMode ? (
+                <PauseCircle className="h-4 w-4 mr-2" />
+              ) : (
+                <PlayCircle className="h-4 w-4 mr-2" />
+              )}
+              {liveMode ? "Oprește live" : "Pornește live"}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={toggleAutoScroll}
+              className={autoScroll ? "bg-secondary" : ""}
+            >
+              <ArrowDown className="h-4 w-4 mr-2" />
+              {autoScroll ? "Oprește autoscroll" : "Pornește autoscroll"}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setActiveView("terminal");
+                restartEEService();
+              }}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Restart EE
@@ -537,7 +410,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
               className="border-0 h-[70vh] overflow-auto bg-mobaxterm-background text-mobaxterm-foreground p-4 font-mono text-sm w-full"
               style={{ fontFamily: 'Consolas, Monaco, "Andale Mono", monospace' }}
             >
-              {loading ? (
+              {loading && logs.length === 0 ? (
                 <div className="flex justify-center items-center h-full">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-mobaxterm-foreground"></div>
                 </div>
@@ -545,28 +418,19 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                 <div className="flex flex-col items-center justify-center h-full text-mobaxterm-brightBlack">
                   <TerminalIcon className="h-12 w-12 mb-2" />
                   <p>Nu există log-uri disponibile</p>
-                  <p className="text-xs mt-2">Apăsați butonul "Show log" pentru a afișa logurile în timp real</p>
+                  <p className="text-xs mt-2">Se așteaptă log-uri de la server...</p>
                 </div>
               ) : (
                 <div>
-                  {logs.map((log, index) => renderExactMobaxtermLogLine(log, index))}
+                  {logs.map((log, index) => renderRawLogLine(log, index))}
+                  {loading && (
+                    <div className="flex justify-center my-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-mobaxterm-foreground"></div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-            
-            {!autoScroll && logs.length > 0 && (
-              <Button
-                variant="outline"
-                size="icon"
-                className="absolute bottom-4 right-4 bg-secondary text-primary z-10"
-                onClick={() => {
-                  setAutoScroll(true);
-                  scrollToBottom();
-                }}
-              >
-                <ArrowDown className="h-4 w-4" />
-              </Button>
-            )}
           </div>
         ) : (
           <div className="relative">
