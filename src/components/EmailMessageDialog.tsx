@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Clipboard, ClipboardCheck } from "lucide-react";
+import { Copy, Check } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -57,45 +57,27 @@ ${requirePasswordChange ? "La prima autentificare va trebui să-ți schimbi paro
 Cu stimă,
 `.trim();
 
-  const copyToClipboard = () => {
-    // Create a textarea element to hold our text
-    const textArea = document.createElement('textarea');
-    textArea.value = emailMessage;
-    
-    // Append the textarea to the document
-    document.body.appendChild(textArea);
-    
-    // Select the text
-    textArea.select();
-    
+  const copyToClipboard = async () => {
     try {
-      // Execute the copy command
-      const successful = document.execCommand('copy');
+      await navigator.clipboard.writeText(emailMessage);
+      setCopied(true);
+      toast({
+        title: "Mesaj copiat",
+        description: "Mesajul a fost copiat în clipboard",
+      });
       
-      if (successful) {
-        setCopied(true);
-        toast({
-          title: "Mesaj copiat",
-          description: "Mesajul a fost copiat în clipboard",
-        });
-        setTimeout(() => setCopied(false), 2000);
-      } else {
-        toast({
-          title: "Eroare",
-          description: "Nu s-a putut copia mesajul",
-          variant: "destructive",
-        });
-      }
+      // Reset the copied state after 2 seconds
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
     } catch (err) {
+      console.error("Failed to copy:", err);
       toast({
         title: "Eroare",
-        description: "Nu s-a putut copia mesajul",
+        description: "Nu s-a putut copia mesajul. Încearcă din nou.",
         variant: "destructive",
       });
     }
-    
-    // Remove the textarea
-    document.body.removeChild(textArea);
   };
 
   return (
@@ -126,15 +108,19 @@ Cu stimă,
           >
             Închide
           </Button>
-          <Button type="button" onClick={copyToClipboard}>
+          <Button 
+            type="button" 
+            onClick={copyToClipboard}
+            className="gap-2"
+          >
             {copied ? (
               <>
-                <ClipboardCheck className="h-4 w-4 mr-2 text-green-500" />
+                <Check className="h-4 w-4" />
                 Copiat
               </>
             ) : (
               <>
-                <Clipboard className="h-4 w-4 mr-2" />
+                <Copy className="h-4 w-4" />
                 Copiază mesajul
               </>
             )}
