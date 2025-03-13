@@ -572,7 +572,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({
         title: "Succes",
         description: "Parola utilizatorului a fost schimbată cu succes.",
-        variant: "success",
       });
       return true;
     }

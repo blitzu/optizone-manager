@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -172,6 +173,15 @@ const UserManagement = () => {
   };
 
   const handleResetPassword = async (user: User) => {
+    if (isSuperUser(user.id)) {
+      toast({
+        title: "Operațiune interzisă",
+        description: "Nu se poate reseta parola pentru REALIZATORUL APLICATIEI.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       const tempPass = await resetUserPassword(user.id);
       if (tempPass) {
@@ -186,6 +196,16 @@ const UserManagement = () => {
 
   const handleChangePassword = async () => {
     if (!userToManage) return;
+    
+    if (isSuperUser(userToManage.id)) {
+      toast({
+        title: "Operațiune interzisă",
+        description: "Nu se poate schimba parola pentru REALIZATORUL APLICATIEI.",
+        variant: "destructive",
+      });
+      setShowChangePasswordDialog(false);
+      return;
+    }
     
     try {
       let finalPassword = newPassword;
@@ -597,4 +617,3 @@ const UserManagement = () => {
 };
 
 export default UserManagement;
-
