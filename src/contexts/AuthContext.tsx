@@ -18,10 +18,10 @@ interface AuthContextType {
   logout: () => void;
   changePassword: (oldPassword: string, newPassword: string) => Promise<boolean>;
   getAllUsers: () => Promise<User[]>;
-  createUser: (username: string, password: string, role: UserRole) => Promise<boolean>;
+  createUser: (username: string, password: string, role: UserRole, requirePasswordChange?: boolean) => Promise<boolean>;
   deleteUser: (userId: string) => Promise<boolean>;
   resetUserPassword: (userId: string) => Promise<string | null>;
-  changeUserPassword: (userId: string, newPassword: string) => Promise<boolean>;
+  changeUserPassword: (userId: string, newPassword: string, requirePasswordChange?: boolean) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -255,7 +255,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const createUser = async (username: string, password: string, role: UserRole): Promise<boolean> => {
+  const createUser = async (username: string, password: string, role: UserRole, requirePasswordChange: boolean = true): Promise<boolean> => {
     try {
       // Only admin can create users
       if (!authState.currentUser || authState.currentUser.role !== 'admin') {
@@ -273,7 +273,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
         },
-        body: JSON.stringify({ username, password, role }),
+        body: JSON.stringify({ username, password, role, requirePasswordChange }),
       });
       
       const data = await response.json();
@@ -317,6 +317,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         username,
         password,
         role,
+        requirePasswordChange
       };
       
       const updatedUsers = [...users, newUser];
@@ -477,7 +478,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const changeUserPassword = async (userId: string, newPassword: string): Promise<boolean> => {
+  const changeUserPassword = async (userId: string, newPassword: string, requirePasswordChange: boolean = false): Promise<boolean> => {
     try {
       // Only admin can change other users' passwords
       if (!authState.currentUser || authState.currentUser.role !== 'admin') {
@@ -495,7 +496,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
         },
-        body: JSON.stringify({ newPassword }),
+        body: JSON.stringify({ newPassword, requirePasswordChange }),
       });
       
       const data = await response.json();
@@ -535,7 +536,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Update user password
       const updatedUsers = users.map((u: User) =>
-        u.id === userId ? { ...u, password: newPassword, requirePasswordChange: false } : u
+        u.id === userId ? { ...u, password: newPassword, requirePasswordChange } : u
       );
       
       localStorage.setItem("optizone-users", JSON.stringify(updatedUsers));

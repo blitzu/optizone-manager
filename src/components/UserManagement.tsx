@@ -96,7 +96,7 @@ const UserManagement = () => {
     }
 
     try {
-      const success = await createUser(username, finalPassword, role);
+      const success = await createUser(username, finalPassword, role, requirePasswordChange);
       
       if (success) {
         if (generateRandomPassword) {
@@ -156,7 +156,7 @@ const UserManagement = () => {
         return;
       }
       
-      const success = await changeUserPassword(userToManage.id, finalPassword);
+      const success = await changeUserPassword(userToManage.id, finalPassword, requirePasswordChange);
       
       if (success) {
         if (generateRandomPassword) {

@@ -1,3 +1,4 @@
+
 /**
  * Server API Express pentru Optizone Fleet Manager
  * 
@@ -151,6 +152,8 @@ app.post('/api/login', (req, res) => {
   
   // Verificăm dacă utilizatorul trebuie să-și schimbe parola
   if (user.requirePasswordChange) {
+    console.log(`Utilizatorul ${username} trebuie să-și schimbe parola la prima conectare.`);
+    
     // Generăm un token temporar pentru schimbarea parolei
     const tempToken = crypto.randomBytes(20).toString('hex');
     
@@ -308,7 +311,7 @@ app.get('/api/users', authenticateToken, isAdmin, (req, res) => {
 
 // Endpoint pentru crearea unui utilizator nou (doar admin)
 app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
-  const { username, password, role, requirePasswordChange = false } = req.body;
+  const { username, password, role, requirePasswordChange = true } = req.body;
   
   if (!username || !password || !role) {
     return res.status(400).json({ 
@@ -316,6 +319,8 @@ app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
       message: 'Nume de utilizator, parolă și rol sunt obligatorii' 
     });
   }
+  
+  console.log(`Creare utilizator nou: ${username}, rol: ${role}, requirePasswordChange: ${requirePasswordChange}`);
   
   const users = getUsers();
   
@@ -336,7 +341,7 @@ app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
     username,
     password: bcrypt.hashSync(password, 10),
     role,
-    requirePasswordChange
+    requirePasswordChange: requirePasswordChange
   };
   
   // Adăugăm utilizatorul în lista
@@ -427,6 +432,8 @@ app.post('/api/users/:id/change-password', authenticateToken, isAdmin, (req, res
       message: 'Parola nouă este obligatorie' 
     });
   }
+  
+  console.log(`Schimbare parolă pentru utilizatorul ${userId}, requirePasswordChange: ${requirePasswordChange}`);
   
   const users = getUsers();
   const userIndex = users.findIndex(u => u.id === userId);
@@ -1090,7 +1097,6 @@ function mapLogLevel(level) {
 }
 
 // În producție, servim aplicația React pentru orice alte rute
-// Această rută trebuie să fie ultimul middleware și acum este configurată doar pentru producție
 app.get('*', (req, res) => {
   console.log(`Serving index.html for path: ${req.path}`);
   res.sendFile(path.join(__dirname, '../dist/index.html'));
