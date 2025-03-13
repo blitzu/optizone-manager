@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -40,7 +39,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const terminalOutputRef = useRef<HTMLDivElement>(null);
 
   const getTextColor = (text: string): string => {
-    // Error/Failure (Red)
     if (
       text.includes("ERROR") || text.includes("FAIL") || text.includes("FAILED") || 
       text.includes("FAILURE") || text.includes("CRITICAL") || text.includes("FATAL") || 
@@ -57,7 +55,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       return "text-mobaxterm-red";
     }
     
-    // Warning/Notification (Yellow)
     if (
       text.includes("WARNING") || text.includes("CAUTION") || text.includes("ALERT") || 
       text.includes("NOTICE") || text.includes("DEPRECATED") || text.includes("UNSTABLE") || 
@@ -66,7 +63,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       return "text-mobaxterm-yellow";
     }
     
-    // Success/Positive Status (Green)
     if (
       text.includes("SUCCESS") || text.includes("PASSED") || text.includes("COMPLETED") || 
       text.includes("OK") || text.includes("DONE") || text.includes("READY") || 
@@ -80,7 +76,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       return "text-mobaxterm-green";
     }
     
-    // General Information (Blue)
     if (
       text.includes("INFO") || text.includes("STATUS") || text.includes("DETAIL") || 
       text.includes("REQUEST") || text.includes("RESPONSE") || text.includes("QUERY") || 
@@ -89,7 +84,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       return "text-mobaxterm-blue";
     }
     
-    // Debugging Information (Magenta)
     if (
       text.includes("DEBUG") || text.includes("TRACE") || text.includes("VERBOSE") || 
       text.includes("IP") || text.includes("IPv4") || text.includes("IPv6") || 
@@ -101,7 +95,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       return "text-mobaxterm-magenta";
     }
     
-    // Authentication (BoldCyan)
     if (
       text.includes("LOGIN") || text.includes("LOGOUT") || text.includes("PASSWORD") || 
       text.includes("USERNAME") || text.includes("USER") || text.includes("DATE") || 
@@ -112,7 +105,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       return "text-mobaxterm-brightCyan";
     }
     
-    // Commands/File Operations/Quantities/Resources (BoldWhite)
     if (
       text.includes("EXECUTE") || text.includes("RUN") || text.includes("CMD") || 
       text.includes("COMMAND") || text.includes("READ") || text.includes("WRITE") || 
@@ -125,14 +117,12 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       return "text-mobaxterm-brightWhite";
     }
     
-    // Waiting State (BoldYellow - neutru)
     if (
       text.includes("PROCESSING") || text.includes("WAITING") || text.includes("IDLE")
     ) {
       return "text-mobaxterm-brightYellow";
     }
     
-    // Legacy color determination for backward compatibility
     if (text.includes("[EE]")) return "text-mobaxterm-red";
     if (text.includes("[WARNING]")) return "text-mobaxterm-yellow";
     if (text.includes("[DEBUG]")) return "text-mobaxterm-magenta";
@@ -418,12 +408,20 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   }, [machine.id]);
 
   const renderRawLogLine = (log: LogEntry, index: number) => {
-    // Display the raw log line exactly as received, without any modifications
     const logText = log.originalLine || log.message;
     const textColor = getTextColor(logText);
     
     return (
-      <div key={index} className={`mb-1 font-mono ${textColor}`}>
+      <div 
+        key={index} 
+        className={`mb-1 font-mono ${textColor}`}
+        style={{ 
+          whiteSpace: 'pre', 
+          fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
+          fontSize: '14px',
+          lineHeight: '1.4'
+        }}
+      >
         {logText}
       </div>
     );
@@ -504,7 +502,11 @@ const LogViewer = ({ machine }: LogViewerProps) => {
               ref={logContainerRef}
               onScroll={handleScroll}
               className="border-0 h-[70vh] overflow-auto bg-mobaxterm-background text-mobaxterm-foreground p-4 font-mono text-sm w-full"
-              style={{ fontFamily: 'Consolas, Monaco, "Andale Mono", monospace' }}
+              style={{ 
+                fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
+                fontSize: '14px',
+                tabSize: 4
+              }}
             >
               {loading && logs.length === 0 ? (
                 <div className="flex justify-center items-center h-full">
@@ -517,7 +519,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                   <p className="text-xs mt-2">Se așteaptă log-uri de la server...</p>
                 </div>
               ) : (
-                <div>
+                <div className="font-mono whitespace-pre">
                   {logs.map((log, index) => renderRawLogLine(log, index))}
                   {loading && (
                     <div className="flex justify-center my-2">
@@ -534,7 +536,12 @@ const LogViewer = ({ machine }: LogViewerProps) => {
               <div 
                 ref={terminalOutputRef}
                 className="flex-1 p-4 overflow-auto"
-                style={{ fontFamily: 'Consolas, Monaco, "Andale Mono", monospace' }}
+                style={{ 
+                  fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
+                  fontSize: '14px',
+                  whiteSpace: 'pre',
+                  tabSize: 4
+                }}
               >
                 <div className="text-mobaxterm-green mb-4">
                   Conectat la {machine.hostname} ({machine.ip}) ca {machine.sshUsername}
