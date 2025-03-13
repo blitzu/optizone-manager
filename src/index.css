@@ -147,6 +147,15 @@ input[type="time"]::-webkit-datetime-edit-minute-field {
   }
 }
 
+/* Adaugă container-fluid pentru layout-ul full width */
+.container-fluid {
+  width: 100%;
+  padding-right: 0;
+  padding-left: 0;
+  margin-right: auto;
+  margin-left: auto;
+}
+
 @layer base {
   * {
     @apply border-border;

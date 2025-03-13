@@ -79,9 +79,12 @@ const Index = () => {
     }
   };
 
+  // Verificăm dacă suntem în modul de vizualizare log-uri pentru a afișa conținutul pe toată lățimea
+  const [activeTab, setActiveTab] = useState<string>(isAdmin ? "machines" : "logs");
+
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className={`${activeTab === 'logs' && selectedMachine ? 'container-fluid px-0 mx-0 max-w-none' : 'container mx-auto'} py-6`}>
+      <div className={`${activeTab === 'logs' && selectedMachine ? 'px-6' : ''} flex justify-between items-center mb-6`}>
         <h1 className="text-3xl font-bold">Optizone Fleet Manager</h1>
         <div className="flex items-center gap-4">
           <div className="text-sm">
@@ -95,23 +98,30 @@ const Index = () => {
         </div>
       </div>
       
-      <Tabs defaultValue={isAdmin ? "machines" : "logs"} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          {isAdmin && <TabsTrigger value="machines">Gestiune PC-uri</TabsTrigger>}
-          <TabsTrigger 
-            value="logs" 
-            disabled={!selectedMachine && !isAdmin}
-          >
-            Vizualizare Logs
-          </TabsTrigger>
-          {isAdmin && <TabsTrigger value="users">Gestiune Utilizatori</TabsTrigger>}
-          <TabsTrigger value="settings">
-            Setări cont
-          </TabsTrigger>
-        </TabsList>
+      <Tabs 
+        defaultValue={isAdmin ? "machines" : "logs"} 
+        className="w-full"
+        value={activeTab}
+        onValueChange={setActiveTab}
+      >
+        <div className={`${activeTab === 'logs' && selectedMachine ? 'px-6' : ''}`}>
+          <TabsList className="grid w-full grid-cols-4">
+            {isAdmin && <TabsTrigger value="machines">Gestiune PC-uri</TabsTrigger>}
+            <TabsTrigger 
+              value="logs" 
+              disabled={!selectedMachine && !isAdmin}
+            >
+              Vizualizare Logs
+            </TabsTrigger>
+            {isAdmin && <TabsTrigger value="users">Gestiune Utilizatori</TabsTrigger>}
+            <TabsTrigger value="settings">
+              Setări cont
+            </TabsTrigger>
+          </TabsList>
+        </div>
         
         {isAdmin && (
-          <TabsContent value="machines">
+          <TabsContent value="machines" className="px-6">
             <MachineManager 
               machines={machines} 
               saveMachines={saveMachines}
@@ -121,10 +131,10 @@ const Index = () => {
           </TabsContent>
         )}
         
-        <TabsContent value="logs">
+        <TabsContent value="logs" className={selectedMachine ? 'px-0' : 'px-6'}>
           {selectedMachine ? (
             <div className="space-y-4">
-              <div className="flex justify-end">
+              <div className="flex justify-end px-6">
                 <Button 
                   variant="outline"
                   onClick={() => testSshConnection(selectedMachine)}
@@ -161,12 +171,12 @@ const Index = () => {
         </TabsContent>
         
         {isAdmin && (
-          <TabsContent value="users">
+          <TabsContent value="users" className="px-6">
             <UserManagement />
           </TabsContent>
         )}
         
-        <TabsContent value="settings">
+        <TabsContent value="settings" className="px-6">
           <UserSettings />
         </TabsContent>
       </Tabs>

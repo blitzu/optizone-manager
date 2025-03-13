@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const getComponentColor = (identifier: string | undefined) => {
     if (!identifier) return "";
     
-    // Putem defini culori diferite pentru diferite componente din sistem
     const componentColors: Record<string, string> = {
       "MAIN": "text-green-400",
       "BP": "text-yellow-400",
@@ -50,7 +48,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       "sh": "text-pink-400"
     };
     
-    // Verificăm dacă identificatorul începe cu una dintre cheile din mapare
     for (const [key, color] of Object.entries(componentColors)) {
       if (identifier.startsWith(key)) {
         return color;
@@ -77,7 +74,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       const logData = await sshService.fetchLogs(logRequest);
       setLogs(logData);
       
-      // Activează autoscroll după încărcarea datelor
       if (autoScroll) {
         setTimeout(scrollToBottom, 100);
       }
@@ -97,10 +93,8 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     setLiveMode(true);
     fetchLiveData();
     
-    // Activează autoscroll automat în modul live
     setAutoScroll(true);
     
-    // Actualizăm log-urile la fiecare 3 secunde în mod live
     liveIntervalRef.current = window.setInterval(fetchLiveData, 3000);
   };
 
@@ -118,18 +112,15 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       const liveLogs = await sshService.fetchLogs(logRequest);
       
       setLogs(prev => {
-        // Dacă nu avem log-uri noi, nu actualizăm starea
         if (!liveLogs || liveLogs.length === 0) return prev;
         
         const combined = [...prev, ...liveLogs];
-        // Eliminăm duplicatele și păstrăm doar ultimele 2000 de log-uri (conform comenzii)
         const uniqueLogs = Array.from(new Map(combined.map(log => 
           [`${log.timestamp}-${log.level}-${log.message}`, log]
         )).values());
         
         const result = uniqueLogs.slice(Math.max(0, uniqueLogs.length - 2000));
         
-        // Activează autoscroll pentru noile log-uri dacă este activat
         if (autoScroll) {
           setTimeout(scrollToBottom, 100);
         }
@@ -138,7 +129,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       });
     } catch (error) {
       console.error('Eroare la obținerea log-urilor live:', error);
-      // Nu afișăm toast pentru a nu deranja utilizatorul la fiecare eroare în modul live
       if (error.toString().includes('ECONNREFUSED') || error.toString().includes('Network Error')) {
         stopLiveMode();
         toast({
@@ -179,7 +169,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     });
   };
 
-  // Funcție pentru a derula automat la ultima intrare din log
   const scrollToBottom = () => {
     if (logContainerRef.current) {
       const container = logContainerRef.current;
@@ -187,22 +176,18 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     }
   };
 
-  // Detectarea schimbării scroll-ului manual de către utilizator
   const handleScroll = () => {
     if (!logContainerRef.current) return;
     
     const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
     
-    // Actualizează starea autoScroll doar dacă utilizatorul a derulat manual
-    // și suntem aproape de sfârșitul containerului
     if (isNearBottom !== autoScroll) {
       setAutoScroll(isNearBottom);
     }
   };
 
   useEffect(() => {
-    // Oprim modul live și obținem log-uri noi atunci când se schimbă mașina selectată
     stopLiveMode();
     fetchLogData();
     
@@ -211,19 +196,15 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     };
   }, [machine.id]);
 
-  // Format personalizat pentru data și ora
   const formatDateTimeDisplay = (date: Date | undefined) => {
     if (!date) return "";
     return format(date, "dd.MM.yyyy HH:mm");
   };
 
-  // Formatarea stilizată a liniilor de log pentru a imita exemplul din imagine
   const renderLogLine = (log: LogEntry, index: number) => {
-    // Parsează syslogIdentifier pentru a extrage posibil componentele
     let component = log.syslogIdentifier || "system";
     let message = log.message;
     
-    // Verifică dacă mesajul conține deja componenta între paranteze pătrate
     const bracketMatch = message.match(/^\[(.*?)\](.*)/);
     if (bracketMatch) {
       component = bracketMatch[1];
@@ -243,8 +224,8 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-0 rounded-none shadow-none">
+      <CardHeader className="px-6">
         <CardTitle className="flex justify-between items-center">
           <span>Log-uri pentru {machine.hostname} ({machine.ip})</span>
           <div className="flex gap-2">
@@ -266,19 +247,21 @@ const LogViewer = ({ machine }: LogViewerProps) => {
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-0">
         <Tabs defaultValue="view" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="view">Vizualizare</TabsTrigger>
-            <TabsTrigger value="filter">Filtrare</TabsTrigger>
-          </TabsList>
+          <div className="px-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="view">Vizualizare</TabsTrigger>
+              <TabsTrigger value="filter">Filtrare</TabsTrigger>
+            </TabsList>
+          </div>
           
           <TabsContent value="view">
             <div className="relative">
               <div 
                 ref={logContainerRef}
                 onScroll={handleScroll}
-                className="border rounded-md h-[50vh] overflow-auto bg-black text-white p-4 font-mono text-sm"
+                className="border-0 h-[70vh] overflow-auto bg-black text-white p-4 font-mono text-sm w-full"
               >
                 {loading ? (
                   <div className="flex justify-center items-center h-full">
@@ -297,7 +280,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                 )}
               </div>
               
-              {/* Buton pentru auto-scroll */}
               {!autoScroll && logs.length > 0 && (
                 <Button
                   variant="outline"
@@ -314,7 +296,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
             </div>
           </TabsContent>
           
-          <TabsContent value="filter">
+          <TabsContent value="filter" className="px-6">
             <div className="grid gap-6">
               <div className="space-y-4">
                 <div>
@@ -357,7 +339,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                                 selected={startDateTime}
                                 onSelect={(date) => {
                                   if (date) {
-                                    // Păstrăm ora dacă există deja, altfel setăm la 00:00
                                     const newDate = new Date(date);
                                     if (startDateTime) {
                                       newDate.setHours(
@@ -445,7 +426,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                                 selected={endDateTime}
                                 onSelect={(date) => {
                                   if (date) {
-                                    // Păstrăm ora dacă există deja, altfel setăm la 23:59
                                     const newDate = new Date(date);
                                     if (endDateTime) {
                                       newDate.setHours(
