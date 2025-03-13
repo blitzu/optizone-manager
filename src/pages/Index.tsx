@@ -6,6 +6,7 @@ import { LogOut, User } from "lucide-react";
 import MachineManager from "@/components/MachineManager";
 import LogViewer from "@/components/LogViewer";
 import UserSettings from "@/components/UserSettings";
+import UserManagement from "@/components/UserManagement";
 import { Machine } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -42,7 +43,7 @@ const Index = () => {
       </div>
       
       <Tabs defaultValue={isAdmin ? "machines" : "logs"} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           {isAdmin && <TabsTrigger value="machines">Gestiune PC-uri</TabsTrigger>}
           <TabsTrigger 
             value="logs" 
@@ -50,6 +51,7 @@ const Index = () => {
           >
             Vizualizare Logs
           </TabsTrigger>
+          {isAdmin && <TabsTrigger value="users">Gestiune Utilizatori</TabsTrigger>}
           <TabsTrigger value="settings">
             Setări cont
           </TabsTrigger>
@@ -94,6 +96,12 @@ const Index = () => {
             </div>
           )}
         </TabsContent>
+        
+        {isAdmin && (
+          <TabsContent value="users">
+            <UserManagement />
+          </TabsContent>
+        )}
         
         <TabsContent value="settings">
           <UserSettings />

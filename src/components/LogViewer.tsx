@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -235,6 +236,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                           selected={startDate}
                           onSelect={setStartDate}
                           initialFocus
+                          className="pointer-events-auto"
                         />
                       </PopoverContent>
                     </Popover>
@@ -256,6 +258,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                           selected={endDate}
                           onSelect={setEndDate}
                           initialFocus
+                          className="pointer-events-auto"
                         />
                       </PopoverContent>
                     </Popover>
@@ -269,6 +272,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                       type="time"
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
+                      className="24hr-time"
                     />
                   </div>
                   <div>
@@ -277,6 +281,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                       type="time"
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
+                      className="24hr-time"
                     />
                   </div>
                 </div>

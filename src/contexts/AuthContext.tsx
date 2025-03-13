@@ -1,4 +1,3 @@
-
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { User, UserRole, AuthState } from "@/types";
 import { toast } from "@/components/ui/use-toast";
@@ -9,6 +8,9 @@ interface AuthContextType {
   login: (username: string, password: string) => boolean;
   logout: () => void;
   changePassword: (oldPassword: string, newPassword: string) => boolean;
+  getAllUsers: () => User[];
+  createUser: (username: string, password: string, role: UserRole) => boolean;
+  deleteUser: (userId: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -125,6 +127,79 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
+  const getAllUsers = (): User[] => {
+    const users = getUsers();
+    if (!authState.currentUser) return users;
+    return users.filter(user => user.id !== authState.currentUser?.id);
+  };
+
+  const createUser = (username: string, password: string, role: UserRole): boolean => {
+    const users = getUsers();
+    
+    // Check if username already exists
+    if (users.some(user => user.username === username)) {
+      toast({
+        title: "Eroare",
+        description: "Numele de utilizator există deja.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Generate a new ID
+    const newId = Math.max(...users.map(user => parseInt(user.id)), 0) + 1;
+    
+    const newUser: User = {
+      id: newId.toString(),
+      username,
+      password,
+      role,
+    };
+
+    const updatedUsers = [...users, newUser];
+    saveUsers(updatedUsers);
+
+    toast({
+      title: "Succes",
+      description: `Utilizatorul ${username} a fost creat cu succes.`,
+    });
+    return true;
+  };
+
+  const deleteUser = (userId: string): boolean => {
+    const users = getUsers();
+    
+    // Cannot delete yourself
+    if (userId === authState.currentUser?.id) {
+      toast({
+        title: "Eroare",
+        description: "Nu vă puteți șterge propriul cont.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const updatedUsers = users.filter(user => user.id !== userId);
+    
+    // If no users were removed, the ID was invalid
+    if (updatedUsers.length === users.length) {
+      toast({
+        title: "Eroare",
+        description: "Utilizatorul nu a fost găsit.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    saveUsers(updatedUsers);
+    
+    toast({
+      title: "Succes",
+      description: "Utilizatorul a fost șters cu succes.",
+    });
+    return true;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -133,6 +208,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         logout,
         changePassword,
+        getAllUsers,
+        createUser,
+        deleteUser,
       }}
     >
       {children}
