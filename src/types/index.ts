@@ -1,4 +1,3 @@
-
 export interface Machine {
   id: string;
   ip: string;
@@ -9,6 +8,9 @@ export interface Machine {
 
 export interface LogRequest {
   machineId: string;
+  ip: string;
+  sshUsername?: string;
+  sshPassword?: string;
   startDate?: string;
   endDate?: string;
   liveMode: boolean;
