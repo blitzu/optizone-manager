@@ -30,6 +30,7 @@ export interface LogEntry {
   level: "info" | "warning" | "error" | "debug";
   message: string;
   syslogIdentifier?: string;
+  originalLine?: string; // Added to help with debugging and formatting
 }
 
 export type UserRole = "admin" | "user";

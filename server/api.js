@@ -149,15 +149,15 @@ app.post('/api/logs', (req, res) => {
     const end = new Date(endDate).toISOString();
     
     // Folosim formatul specificat în script
-    command = `journalctl -a -n 1000 -u ${appName} -S "${start}" -U "${end}"`;
+    command = `journalctl -a -n 1000 -u ${appName} -S "${start}" -U "${end}" --output=cat`;
     console.log(`Executare comandă de filtrare după dată: ${command}`);
   } else if (liveMode) {
-    // Folosim comanda live specificată în script
-    command = `journalctl -a -n 2000 -f -u ${appName}`;
+    // Folosim comanda live specificată în script, cu output=cat pentru a evita prefixele journalctl
+    command = `journalctl -a -n 2000 -f -u ${appName} --output=cat`;
     console.log(`Executare comandă live: ${command}`);
   } else {
     // Comandă implicită pentru ultimele log-uri
-    command = `journalctl -a -n 1000 -u ${appName}`;
+    command = `journalctl -a -n 1000 -u ${appName} --output=cat`;
     console.log(`Executare comandă implicită: ${command}`);
   }
   
@@ -235,81 +235,109 @@ function processRawLogs(rawLogs) {
     if (trimmedLine === '') continue;
     
     try {
-      // Pattern pentru log-uri conform imaginii de referință
-      // Ex: [EE][25-03-13 13:27:23][MAIN] 'gema' v4.1.60/7.6.19/2.6.26 hb:9026 itr 383903 (0 void), Hz: 3.7/5, 25.2 hrs, New.pl.: 0, cpu 10.4%, ram(EE) 10.7(6.5)/31.0 GB, cuda:0 30.9%, mem 1.9/7.8GB, 56°C, gpu fan 41%
-      // sau: [13.03.2025 13:24:49] [INFO] [sh] - GPU 0 load 0%, memory load 2.0, fan speed: System is not in ready state%
+      // Formate posibile de log-uri conform exemplelor din MobaXterm
       
-      // Verificăm diferite formate posibile
+      // Format 1: [EE][25-03-13 14:17:37][MQ][HE] 17109: ['gema', None, None, None]
+      const eeBracketRegex = /\[EE\]\[([0-9-]+\s+[0-9:]+)\]\[([^\]]+)\]\[([^\]]+)\]\s+(.*)/;
+      
+      // Format 2: Mar 13 14:17:30 gema sh[2702]: 16  live       CVP-11-1     0.1   0.0  6.6   10/10   3.6     0   -1   -1   -1   -1   -1   -1   -1
+      const marLogRegex = /(Mar\s+\d+\s+\d+:\d+:\d+)\s+(\w+)\s+(\w+)\[(\d+)\]:\s+(.*)/;
+      
+      // Format 3: [DCT:VIST-LPR-OUT-1] Log reader thread joined gracefully.
+      const componentBracketRegex = /\[([^\]]+)\]\s+(.*)/;
+      
+      let match;
       let timestamp, level, component, message;
       
-      // Format 1: [EE][25-03-13 13:27:23][MAIN] mesaj
-      const format1Regex = /\[([A-Z]+)\]\[([0-9-]+\s+[0-9:]+)\]\[([^\]]+)\]\s+(.*)/;
-      // Format 2: [13.03.2025 13:24:49] [INFO] [sh] mesaj
-      const format2Regex = /\[([0-9.]+\s+[0-9:]+)\]\s+\[([^\]]+)\]\s+\[([^\]]+)\]\s+(.*)/;
-      // Format 3: Mar 13 13:27:33 gema sh[2702]: 0 BB00LZR 2025-03-13 13:22:17 ... (tabel)
-      const format3Regex = /(Mar\s+\d+\s+\d+:\d+:\d+)\s+(\w+)\s+(\w+)\[(\d+)\]:\s+(.*)/;
-      
-      let match = format1Regex.exec(trimmedLine);
-      
-      if (match) {
-        // Format 1
-        level = match[1];
-        timestamp = match[2];
-        component = match[3];
-        message = match[4];
+      // Încercăm să detectăm formatele cunoscute
+      if (trimmedLine.startsWith('[EE]')) {
+        // Log-uri de tip [EE]
+        match = eeBracketRegex.exec(trimmedLine);
         
-        logs.push({
-          timestamp: convertToISODate(timestamp),
-          level: mapLogLevel(level),
-          message: `[${component}] ${message}`,
-          syslogIdentifier: component
-        });
-        continue;
+        if (match) {
+          timestamp = match[1];
+          component = `${match[2]}:${match[3]}`;
+          message = match[4];
+          level = "error"; // [EE] reprezintă erori
+          
+          logs.push({
+            timestamp: convertToISODate(timestamp),
+            level: level,
+            message: message,
+            syslogIdentifier: component,
+            originalLine: trimmedLine // Păstrăm linia originală pentru debugging
+          });
+          continue;
+        }
+      } else if (trimmedLine.match(/^Mar\s+\d+\s+\d+:\d+:\d+/)) {
+        // Log-uri cu prefix Mar 13 14:17:30
+        match = marLogRegex.exec(trimmedLine);
+        
+        if (match) {
+          timestamp = match[1];
+          const app = match[2];
+          component = match[3];
+          const pid = match[4];
+          message = match[5];
+          
+          // Determinare nivel de log bazat pe conținut
+          if (message.includes('error') || message.includes('fail') || message.includes('invalid')) {
+            level = 'error';
+          } else if (message.includes('warning') || message.includes('warn')) {
+            level = 'warning';
+          } else if (message.includes('debug')) {
+            level = 'debug';
+          } else {
+            level = 'info';
+          }
+          
+          logs.push({
+            timestamp: convertToISODate(timestamp, false, true),
+            level: level,
+            message: message,
+            syslogIdentifier: `${component}[${pid}]`,
+            originalLine: trimmedLine // Păstrăm linia originală pentru debugging
+          });
+          continue;
+        }
+      } else if (trimmedLine.match(/^\[.*?\]/)) {
+        // Log-uri cu componenta în brackets
+        match = componentBracketRegex.exec(trimmedLine);
+        
+        if (match) {
+          component = match[1];
+          message = match[2];
+          timestamp = new Date().toISOString();
+          
+          // Determinare nivel de log bazat pe componenta
+          if (component.includes('ERROR') || component.includes('FATAL')) {
+            level = 'error';
+          } else if (component.includes('WARN')) {
+            level = 'warning';
+          } else if (component.includes('DEBUG')) {
+            level = 'debug';
+          } else {
+            level = 'info';
+          }
+          
+          logs.push({
+            timestamp: timestamp,
+            level: level,
+            message: message,
+            syslogIdentifier: component,
+            originalLine: trimmedLine
+          });
+          continue;
+        }
       }
       
-      match = format2Regex.exec(trimmedLine);
-      
-      if (match) {
-        // Format 2
-        timestamp = match[1];
-        level = match[2];
-        component = match[3];
-        message = match[4] || '';
-        
-        logs.push({
-          timestamp: convertToISODate(timestamp, true),
-          level: mapLogLevel(level),
-          message: `[${component}] ${message}`,
-          syslogIdentifier: component
-        });
-        continue;
-      }
-      
-      match = format3Regex.exec(trimmedLine);
-      
-      if (match) {
-        // Format 3 (tabel)
-        timestamp = match[1];
-        const app = match[2];
-        component = match[3];
-        const pid = match[4];
-        message = match[5];
-        
-        logs.push({
-          timestamp: convertToISODate(timestamp, false, true),
-          level: "info",
-          message: `[${app}][${component}:${pid}] ${message}`,
-          syslogIdentifier: component
-        });
-        continue;
-      }
-      
-      // Dacă nu se potrivește cu niciunul dintre formatele cunoscute, adăugăm ca mesaj simplu
+      // Dacă nu am putut identifica formatul, folosim un format implicit
       logs.push({
         timestamp: new Date().toISOString(),
-        level: "info",
+        level: determineLogLevel(trimmedLine),
         message: trimmedLine,
-        syslogIdentifier: "system"
+        syslogIdentifier: "system",
+        originalLine: trimmedLine
       });
     } catch (e) {
       console.error("Eroare la procesarea unei linii de log:", e);
@@ -318,12 +346,33 @@ function processRawLogs(rawLogs) {
         timestamp: new Date().toISOString(),
         level: "info",
         message: trimmedLine,
-        syslogIdentifier: "system"
+        syslogIdentifier: "system",
+        originalLine: trimmedLine
       });
     }
   }
   
   return logs;
+}
+
+// Funcție pentru a determina nivelul de log pe baza conținutului
+function determineLogLevel(logLine) {
+  logLine = logLine.toLowerCase();
+  
+  if (logLine.includes('error') || logLine.includes('fail') || logLine.includes('fatal') || 
+      logLine.startsWith('[ee]') || logLine.includes('exception')) {
+    return 'error';
+  }
+  
+  if (logLine.includes('warn') || logLine.includes('warning')) {
+    return 'warning';
+  }
+  
+  if (logLine.includes('debug') || logLine.includes('trace')) {
+    return 'debug';
+  }
+  
+  return 'info';
 }
 
 // Funcție pentru a converti diverse formate de dată în ISO

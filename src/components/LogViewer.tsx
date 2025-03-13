@@ -8,17 +8,13 @@ import {
   AlertCircle, 
   Download, 
   Terminal as TerminalIcon, 
-  Calendar as CalendarIcon, 
-  ArrowDown,
   FileText,
-  RefreshCw
+  RefreshCw,
+  ArrowDown
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatDateTime } from "@/utils/dateUtils";
 import { Input } from "@/components/ui/input";
-import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { sshService } from "@/services/sshService";
 
 interface LogViewerProps {
@@ -29,9 +25,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [liveMode, setLiveMode] = useState(false);
-  const [startDateTime, setStartDateTime] = useState<Date>();
-  const [endDateTime, setEndDateTime] = useState<Date>();
-  const [applicationName, setApplicationName] = useState<string>("aixp_ee");
   const [autoScroll, setAutoScroll] = useState(true);
   const [terminalCommand, setTerminalCommand] = useState<string>("");
   const [terminalOutput, setTerminalOutput] = useState<string>("");
@@ -45,35 +38,59 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const terminalInputRef = useRef<HTMLInputElement>(null);
   const terminalOutputRef = useRef<HTMLDivElement>(null);
 
-  // Function to get colors for log levels (MobaXterm style)
+  // MobaXterm style color management
+  const getColorForComponent = (component: string): string => {
+    if (!component) return "text-gray-400";
+    
+    // Color mapping similar to MobaXterm
+    if (component.includes("DCT:VIST")) return "text-cyan-300";
+    if (component.includes("BP")) return "#f0ad4e"; // yellow-orange
+    if (component.includes("MAIN")) return "text-green-400";
+    if (component.includes("MQ")) return "text-purple-400";
+    if (component.includes("LPR")) return "text-cyan-400";
+    if (component.includes("CAP")) return "text-sky-400";
+    if (component.includes("admin_pipeline")) return "text-pink-400";
+    if (component.includes("sh")) return "text-gray-400";
+    
+    // Default color for unknown components
+    return "text-gray-300";
+  };
+
+  // Get text color for log level
   const getLevelColor = (level: LogEntry['level']) => {
     switch (level) {
-      case "info": return "text-white"; // Normal text in MobaXterm
-      case "warning": return "text-yellow-400"; // Yellow in MobaXterm
-      case "error": return "text-red-500"; // Red in MobaXterm
-      case "debug": return "text-blue-400"; // Light blue in MobaXterm
+      case "error": return "text-red-500";
+      case "warning": return "text-yellow-400";
+      case "debug": return "text-blue-400";
       default: return "text-white";
     }
   };
 
-  // Function to color components (MobaXterm style)
-  const getComponentColor = (identifier: string | undefined) => {
-    if (!identifier) return "text-gray-400";
-    
-    const componentColors: Record<string, string> = {
-      "MAIN": "text-green-400",
-      "BP": "text-yellow-400", 
-      "MQ": "text-cyan-400",
-      "sh": "text-pink-400"
-    };
-    
-    for (const [key, color] of Object.entries(componentColors)) {
-      if (identifier.includes(key)) {
-        return color;
-      }
-    }
-    
-    return "text-purple-400";
+  // Get color for table cell value - MobaXterm-like
+  const getValueColor = (value: string) => {
+    if (value === "True") return "text-green-400";
+    if (value === "False") return "text-red-400";
+    if (value === "None") return "text-gray-500";
+    if (value.includes("/")) return "text-yellow-400"; // For fractions like 10/10
+    if (!isNaN(Number(value))) return "text-blue-400"; // For numbers
+    return "text-white"; // Default
+  };
+
+  // Function for auto-detecting special rows in log
+  const isTableHeader = (message: string): boolean => {
+    return message.includes("TRACK_ID") || 
+           message.includes("Status") || 
+           message.includes("Name") ||
+           (message.includes("--") && message.includes("--"));
+  };
+
+  // Function for checking if a line is part of a table
+  const isTableRow = (message: string): boolean => {
+    // If message has multiple continuous spaces or tabs, it's likely a table
+    return message.match(/\s{2,}/) !== null || 
+           message.match(/\t/) !== null || 
+           message.includes("live") ||
+           message.match(/^\d+\s+[A-Z0-9]+\s+\d{4}-\d{2}-\d{2}/) !== null;
   };
 
   const fetchLogData = async () => {
@@ -85,9 +102,9 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         sshUsername: machine.sshUsername,
         sshPassword: machine.sshPassword,
         liveMode: false,
-        startDate: startDateTime?.toISOString(),
-        endDate: endDateTime?.toISOString(),
-        applicationName: applicationName || "aixp_ee"
+        startDate: undefined,
+        endDate: undefined,
+        applicationName: "aixp_ee"
       };
       
       const logData = await sshService.fetchLogs(logRequest);
@@ -130,7 +147,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         sshUsername: machine.sshUsername,
         sshPassword: machine.sshPassword,
         liveMode: true,
-        applicationName: applicationName || "aixp_ee"
+        applicationName: "aixp_ee"
       };
       
       const liveLogs = await sshService.fetchLogs(logRequest);
@@ -235,7 +252,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       });
       
       setTerminalOutput(prev => 
-        prev + `${response.output}\nServiciul aixp_ee a fost repornit.\n`
+        prev + `${response.output}\nServiciul aixp_ee a fost repornit cu succes.\n`
       );
       
       toast({
@@ -337,10 +354,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     }
   };
 
-  const handleTerminalScroll = () => {
-    // Terminal stays scrolled to bottom automatically when active
-  };
-
   useEffect(() => {
     stopLiveMode();
     fetchLogData();
@@ -355,37 +368,71 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     };
   }, [machine.id]);
 
-  const formatDateTimeDisplay = (date: Date | undefined) => {
-    if (!date) return "";
-    return format(date, "dd.MM.yyyy HH:mm");
-  };
-
-  // Function to parse and format log lines (MobaXterm style)
+  // Function to render log line in MobaXterm style
   const renderLogLine = (log: LogEntry, index: number) => {
-    // Detect component from message or use syslogIdentifier
-    let component = log.syslogIdentifier || "system";
-    let message = log.message;
+    const message = log.message;
+    const syslogIdentifier = log.syslogIdentifier || "system";
     
-    // Extract component from brackers if present
-    const bracketMatch = message.match(/^\[(.*?)\](.*)/);
-    if (bracketMatch) {
-      component = bracketMatch[1];
-      message = bracketMatch[2].trim();
+    // Check for special formatting cases
+    if (log.originalLine && log.originalLine.startsWith('[EE]')) {
+      // Format EE logs like in MobaXterm (errors in red)
+      return (
+        <div key={index} className="mb-1 font-mono text-red-500">
+          {log.originalLine}
+        </div>
+      );
+    } 
+    else if (isTableHeader(message)) {
+      // Format table headers differently
+      return (
+        <div key={index} className="mb-1 font-mono text-yellow-400 font-bold">
+          {message}
+        </div>
+      );
+    }
+    else if (isTableRow(message)) {
+      // Try to format tabular data
+      try {
+        // Split by multiple spaces or tabs
+        const parts = message.split(/\s{2,}|\t/).filter(part => part.trim() !== '');
+        
+        if (parts.length > 1) {
+          return (
+            <div key={index} className="mb-1 font-mono flex flex-wrap">
+              {parts.map((part, i) => (
+                <span 
+                  key={i} 
+                  className={`${getValueColor(part)} mr-3`}
+                  style={{ minWidth: '6ch' }}
+                >
+                  {part}
+                </span>
+              ))}
+            </div>
+          );
+        }
+      } catch (e) {
+        console.error("Error parsing table row:", e);
+      }
     }
     
-    // Use MobaXterm-like colors for different log parts
+    // Default format with MobaXterm coloring for regular logs
     return (
       <div key={index} className={`mb-1 font-mono ${getLevelColor(log.level)}`}>
-        <span className="text-gray-400">
-          [{formatDateTime(log.timestamp)}]
-        </span>{' '}
+        {log.timestamp ? (
+          <>
+            <span className="text-gray-400">
+              [{formatDateTime(log.timestamp)}]
+            </span>{' '}
+          </>
+        ) : null}
         <span className={`font-semibold ${getLevelColor(log.level)}`}>
           [{log.level.toUpperCase()}]
         </span>{' '}
-        <span className={getComponentColor(component)}>
-          [{component}]
+        <span className={`${getColorForComponent(syslogIdentifier)}`}>
+          [{syslogIdentifier}]
         </span>{' '}
-        {message}
+        <span>{message}</span>
       </div>
     );
   };
