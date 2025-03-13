@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,17 +45,7 @@ import EmailMessageDialog from "./EmailMessageDialog";
 const useAuthWithRoleUpdate = () => {
   const auth = useAuth();
   
-  return {
-    ...auth,
-    updateUserRole: auth.updateUserRole || (async (userId: string, role: UserRole) => {
-      console.log(`Updating user ${userId} to role ${role}`);
-      toast({
-        title: "Funcționalitate în dezvoltare",
-        description: "Schimbarea rolului va fi implementată în versiunea următoare",
-      });
-      return false;
-    })
-  };
+  return auth;
 };
 
 const UserManagement = () => {
@@ -241,7 +230,7 @@ const UserManagement = () => {
   const handleChangeRole = async () => {
     if (!userToManage) return;
     
-    if (userToManage.id === "1" && userToManage.role !== newRole) {
+    if (isSuperUser(userToManage.id) && userToManage.role !== newRole) {
       toast({
         title: "Operațiune interzisă",
         description: "Rolul acestui utilizator nu poate fi modificat.",

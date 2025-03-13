@@ -456,6 +456,47 @@ app.post('/api/users/:id/change-password', authenticateToken, isAdmin, (req, res
   });
 });
 
+// Endpoint pentru schimbarea rolului unui utilizator (doar admin)
+app.put('/api/users/:id/role', authenticateToken, isAdmin, (req, res) => {
+  const userId = req.params.id;
+  const { role } = req.body;
+  
+  if (!role || !['admin', 'user'].includes(role)) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Rolul specificat nu este valid' 
+    });
+  }
+  
+  // Protecție suplimentară pentru utilizatorul cu ID-ul 1
+  if (userId === "1") {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Nu se poate modifica rolul pentru REALIZATORUL APLICAȚIEI' 
+    });
+  }
+  
+  const users = getUsers();
+  const userIndex = users.findIndex(u => u.id === userId);
+  
+  if (userIndex === -1) {
+    return res.status(404).json({ 
+      success: false, 
+      message: 'Utilizatorul nu a fost găsit' 
+    });
+  }
+  
+  // Actualizăm rolul utilizatorului
+  users[userIndex].role = role;
+  
+  saveUsers(users);
+  
+  res.json({
+    success: true,
+    message: `Rolul utilizatorului a fost schimbat în ${role}`
+  });
+});
+
 // Endpoint pentru testarea conexiunii SSH
 app.post('/api/test-connection', (req, res) => {
   const { ip, sshUsername, sshPassword } = req.body;
