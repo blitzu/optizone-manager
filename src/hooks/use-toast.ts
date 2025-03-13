@@ -168,7 +168,7 @@ function toast(props: ToastCreationProps) {
     },
   })
 
-  // Set up auto-dismiss timeout
+  // Set up auto-dismiss timeout - directly use the ID from our scope
   const timeoutId = setTimeout(() => {
     dismissToast(id)
     // Add a slight delay before removing from DOM

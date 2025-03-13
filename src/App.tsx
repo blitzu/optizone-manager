@@ -1,6 +1,5 @@
 
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -10,7 +9,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import ChangePassword from "./pages/ChangePassword";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 
 console.log("Componenta App se inițializează...");
 
@@ -25,7 +24,11 @@ const queryClient = new QueryClient({
             ? error.message 
             : 'A apărut o eroare de conexiune. Verificați conexiunea la server.';
           
-          toast.error(errorMessage);
+          toast({
+            title: "Eroare",
+            description: errorMessage,
+            variant: "destructive"
+          });
           console.error('Query error:', error);
         }
       }
@@ -38,9 +41,17 @@ const queryClient = new QueryClient({
             : 'A apărut o eroare de conexiune. Verificați conexiunea la server.';
           
           if (errorMessage.includes('permisiuni') || errorMessage.includes('permission denied')) {
-            toast.error('Eroare de permisiuni pe server. Contactați administratorul sistemului.');
+            toast({
+              title: "Eroare",
+              description: 'Eroare de permisiuni pe server. Contactați administratorul sistemului.',
+              variant: "destructive"
+            });
           } else {
-            toast.error(errorMessage);
+            toast({
+              title: "Eroare",
+              description: errorMessage,
+              variant: "destructive"
+            });
           }
           
           console.error('Mutation error:', error);
@@ -67,7 +78,6 @@ const App = () => {
         <AuthProvider>
           <TooltipProvider>
             <Toaster />
-            <Sonner />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/change-password" element={<ChangePassword />} />
