@@ -23,6 +23,7 @@ interface MachineManagerProps {
 interface MachineWithStatus extends Machine {
   isOnline?: boolean;
   lastChecked?: Date;
+  connectionActive?: boolean; // Flag to track if we have an active connection
 }
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -46,6 +47,7 @@ const MachineManager = ({
   const [checkingStatus, setCheckingStatus] = useState(false);
   const statusCheckIntervalRef = useRef<number | null>(null);
   const { currentUser } = useAuth();
+  const activeConnectionsRef = useRef<{[key: string]: boolean}>({});
 
   useEffect(() => {
     if (currentUser && currentUser.id) {
@@ -70,7 +72,8 @@ const MachineManager = ({
         return {
           ...machine,
           isOnline: existingMachine?.isOnline,
-          lastChecked: existingMachine?.lastChecked
+          lastChecked: existingMachine?.lastChecked,
+          connectionActive: existingMachine?.connectionActive
         };
       });
     });
@@ -79,11 +82,11 @@ const MachineManager = ({
   useEffect(() => {
     // Start the status check interval when machinesWithStatus changes
     if (machinesWithStatus.length > 0 && !statusCheckIntervalRef.current) {
-      checkAllMachinesStatus();
+      checkMachinesStatus();
       
       // Set up interval to check status every 30 seconds
       statusCheckIntervalRef.current = window.setInterval(() => {
-        checkAllMachinesStatus();
+        checkMachinesStatus();
       }, 30000);
     }
 
@@ -95,30 +98,91 @@ const MachineManager = ({
     };
   }, [machinesWithStatus]);
 
-  const checkAllMachinesStatus = async () => {
+  const checkMachinesStatus = async () => {
     if (checkingStatus || machinesWithStatus.length === 0) return;
     
     setCheckingStatus(true);
     
     try {
-      console.log("Verificare status pentru toate mașinile...");
+      console.log("Verificare status pentru mașini...");
       const updatedMachines = [...machinesWithStatus];
       
       for (let i = 0; i < updatedMachines.length; i++) {
-        try {
-          const result = await sshService.testConnection(updatedMachines[i]);
-          updatedMachines[i] = {
-            ...updatedMachines[i],
-            isOnline: result.success,
-            lastChecked: new Date()
-          };
-        } catch (error) {
-          console.error(`Eroare la verificarea mașinii ${updatedMachines[i].hostname}:`, error);
-          updatedMachines[i] = {
-            ...updatedMachines[i],
-            isOnline: false,
-            lastChecked: new Date()
-          };
+        const machineId = updatedMachines[i].id;
+        
+        // Only check machines that don't have an active connection
+        if (!activeConnectionsRef.current[machineId]) {
+          try {
+            console.log(`Verificare conexiune pentru ${updatedMachines[i].hostname}`);
+            const result = await sshService.testConnection(updatedMachines[i]);
+            
+            if (result.success) {
+              // Connection successful, mark as active
+              activeConnectionsRef.current[machineId] = true;
+              updatedMachines[i] = {
+                ...updatedMachines[i],
+                isOnline: true,
+                connectionActive: true,
+                lastChecked: new Date()
+              };
+              console.log(`Conexiune stabilită cu ${updatedMachines[i].hostname}`);
+            } else {
+              // Connection failed
+              activeConnectionsRef.current[machineId] = false;
+              updatedMachines[i] = {
+                ...updatedMachines[i],
+                isOnline: false,
+                connectionActive: false,
+                lastChecked: new Date()
+              };
+              console.log(`Nu s-a putut stabili conexiunea cu ${updatedMachines[i].hostname}`);
+            }
+          } catch (error) {
+            console.error(`Eroare la verificarea mașinii ${updatedMachines[i].hostname}:`, error);
+            activeConnectionsRef.current[machineId] = false;
+            updatedMachines[i] = {
+              ...updatedMachines[i],
+              isOnline: false,
+              connectionActive: false,
+              lastChecked: new Date()
+            };
+          }
+        } else {
+          // We have an active connection, ping it to make sure it's still alive
+          try {
+            console.log(`Verificare conexiune activă pentru ${updatedMachines[i].hostname}`);
+            const pingResult = await sshService.testConnection(updatedMachines[i]);
+            
+            if (pingResult.success) {
+              // Connection still active
+              updatedMachines[i] = {
+                ...updatedMachines[i],
+                isOnline: true,
+                connectionActive: true,
+                lastChecked: new Date()
+              };
+              console.log(`Conexiune activă menținută cu ${updatedMachines[i].hostname}`);
+            } else {
+              // Connection lost, mark as inactive
+              activeConnectionsRef.current[machineId] = false;
+              updatedMachines[i] = {
+                ...updatedMachines[i],
+                isOnline: false,
+                connectionActive: false,
+                lastChecked: new Date()
+              };
+              console.log(`Conexiune pierdută cu ${updatedMachines[i].hostname}`);
+            }
+          } catch (error) {
+            console.error(`Eroare la verificarea conexiunii active cu ${updatedMachines[i].hostname}:`, error);
+            activeConnectionsRef.current[machineId] = false;
+            updatedMachines[i] = {
+              ...updatedMachines[i],
+              isOnline: false,
+              connectionActive: false,
+              lastChecked: new Date()
+            };
+          }
         }
       }
       
@@ -371,11 +435,35 @@ const MachineManager = ({
       const result = await sshService.testConnection(machine);
       
       if (result.success) {
+        // Mark the connection as active
+        activeConnectionsRef.current[machine.id] = true;
+        
+        // Update the machine status
+        setMachinesWithStatus(prev => 
+          prev.map(m => 
+            m.id === machine.id 
+              ? { ...m, isOnline: true, connectionActive: true, lastChecked: new Date() } 
+              : m
+          )
+        );
+        
         toast({
           title: "Conectare reușită",
           description: `Conexiune SSH stabilită cu ${machine.hostname}`,
         });
       } else {
+        // Connection failed
+        activeConnectionsRef.current[machine.id] = false;
+        
+        // Update the machine status
+        setMachinesWithStatus(prev => 
+          prev.map(m => 
+            m.id === machine.id 
+              ? { ...m, isOnline: false, connectionActive: false, lastChecked: new Date() } 
+              : m
+          )
+        );
+        
         toast({
           title: "Conectare eșuată",
           description: result.message,
@@ -383,6 +471,18 @@ const MachineManager = ({
         });
       }
     } catch (error) {
+      // Connection error
+      activeConnectionsRef.current[machine.id] = false;
+      
+      // Update the machine status
+      setMachinesWithStatus(prev => 
+        prev.map(m => 
+          m.id === machine.id 
+            ? { ...m, isOnline: false, connectionActive: false, lastChecked: new Date() } 
+            : m
+        )
+      );
+      
       toast({
         title: "Eroare",
         description: "Nu s-a putut stabili conexiunea SSH. Verificați configurarea serverului.",
@@ -416,7 +516,7 @@ const MachineManager = ({
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={checkAllMachinesStatus}
+              onClick={checkMachinesStatus}
               disabled={checkingStatus}
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${checkingStatus ? 'animate-spin' : ''}`} />
@@ -484,9 +584,9 @@ const MachineManager = ({
                         {machine.isOnline === undefined ? (
                           <span>Status necunoscut</span>
                         ) : machine.isOnline ? (
-                          <span>Online - Conectat prin SSH</span>
+                          <span>Online - Conexiune SSH activă</span>
                         ) : (
-                          <span>Offline - Nu se poate conecta prin SSH</span>
+                          <span>Offline - Nu există conexiune SSH</span>
                         )}
                         {machine.lastChecked && (
                           <div className="text-xs text-muted-foreground mt-1">
