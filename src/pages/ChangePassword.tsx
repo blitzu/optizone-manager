@@ -19,9 +19,11 @@ const ChangePassword = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Parse the tempToken from the URL query parameters
+    // Parse the tempToken and username from the URL query parameters
     const searchParams = new URLSearchParams(location.search);
     const token = searchParams.get("tempToken");
+    const user = searchParams.get("username");
+    
     if (token) {
       setTempToken(token);
     } else {
@@ -31,6 +33,10 @@ const ChangePassword = () => {
         variant: "destructive",
       });
       navigate("/login");
+    }
+    
+    if (user) {
+      setUsername(user);
     }
   }, [location.search, navigate]);
 
@@ -107,6 +113,7 @@ const ChangePassword = () => {
                 placeholder="Nume utilizator"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                readOnly={!!username}
                 required
               />
             </div>

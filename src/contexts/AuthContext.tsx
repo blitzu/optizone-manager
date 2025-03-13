@@ -102,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { requirePasswordChange, tempToken } = response.data;
         
         if (requirePasswordChange && tempToken) {
-          navigate(`/change-password?tempToken=${tempToken}`);
+          navigate(`/change-password?tempToken=${tempToken}&username=${username}`);
         } else {
           navigate("/");
         }
