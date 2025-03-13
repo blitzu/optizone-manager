@@ -14,7 +14,7 @@ const ChangePassword = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [tempToken, setTempToken] = useState("");
-  const { changeTempPassword } = useAuth();
+  const { changeTempPassword, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -77,12 +77,18 @@ const ChangePassword = () => {
     try {
       const success = await changeTempPassword(username, tempToken, newPassword);
       
-      if (!success) {
+      if (success) {
         toast({
-          title: "Eroare",
-          description: "Nu s-a putut schimba parola. Vă rugăm să încercați din nou.",
-          variant: "destructive",
+          title: "Succes",
+          description: "Parola a fost schimbată cu succes. Vă rugăm să vă autentificați din nou cu noua parolă.",
         });
+        
+        // Log out the user after a short delay to allow them to see the success message
+        setTimeout(() => {
+          logout();
+          // Navigate to login page
+          navigate("/login");
+        }, 2000);
       }
     } catch (error) {
       console.error("Error changing password:", error);

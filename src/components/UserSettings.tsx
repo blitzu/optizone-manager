@@ -50,7 +50,8 @@ const UserSettings = () => {
           description: "Parola a fost schimbată cu succes. Vă rugăm să vă autentificați din nou.",
         });
         
-        // Log the user out after successful password change
+        // Log the user out after successful password change with a small delay
+        // to allow them to see the success message
         setTimeout(() => {
           logout();
         }, 2000);
