@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,60 @@ const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [internalIp, setInternalIp] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Obținem IP-ul intern la încărcarea componentei
+  useEffect(() => {
+    const getInternalIp = async () => {
+      try {
+        // Folosim RTCPeerConnection pentru a obține IP-ul intern
+        const pc = new RTCPeerConnection({ iceServers: [] });
+        pc.createDataChannel("");
+        
+        pc.onicecandidate = (event) => {
+          if (!event.candidate) return;
+          
+          // Căutăm adresele IPv4 interne (regex pentru adrese 10.x.x.x, 172.16-31.x.x sau 192.168.x.x)
+          const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
+          const ipMatch = ipRegex.exec(event.candidate.candidate);
+          
+          if (ipMatch && ipMatch[1]) {
+            const ip = ipMatch[1];
+            
+            // Verificăm dacă este un IP intern
+            if (
+              ip.startsWith('10.') || 
+              ip.startsWith('192.168.') || 
+              /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)
+            ) {
+              console.log("IP intern detectat:", ip);
+              setInternalIp(ip);
+              pc.onicecandidate = null;
+              pc.close();
+            }
+          }
+        };
+        
+        // Inițiem procesul de obținere a candidaților ICE
+        await pc.createOffer().then(offer => pc.setLocalDescription(offer));
+        
+        // În cazul în care nu am găsit niciun IP intern după un timp, vom folosi "necunoscut"
+        setTimeout(() => {
+          if (!internalIp) {
+            console.log("Nu s-a putut detecta IP-ul intern");
+            setInternalIp("necunoscut (client)");
+          }
+        }, 1000);
+      } catch (error) {
+        console.error("Eroare la obținerea IP-ului intern:", error);
+        setInternalIp("necunoscut (eroare)");
+      }
+    };
+    
+    getInternalIp();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +83,9 @@ const Login = () => {
 
     try {
       console.log("Attempting login for user:", username);
-      const result = await login(username, password);
+      console.log("Using internal IP:", internalIp);
+      
+      const result = await login(username, password, internalIp);
       
       console.log("Login result:", result);
       console.log("User data with lastLogin info:", result.user);
@@ -78,53 +132,6 @@ const Login = () => {
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!username) {
-      toast({
-        title: "Introduceți numele de utilizator",
-        description: "Pentru a reseta parola, introduceți numele de utilizator",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch("/api/forgot-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast({
-          title: "Email trimis",
-          description:
-            "Un email cu instrucțiuni pentru resetarea parolei a fost trimis",
-        });
-      } else {
-        toast({
-          title: "Eroare",
-          description: data.message || "Utilizatorul nu a fost găsit",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Forgot password error:", error);
-      toast({
-        title: "Eroare",
-        description: "A apărut o eroare la procesarea cererii",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <Card className="w-full max-w-md">
@@ -145,17 +152,7 @@ const Login = () => {
               />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Parolă</Label>
-                <Button 
-                  variant="link" 
-                  className="px-0 font-normal text-xs text-blue-600" 
-                  type="button"
-                  onClick={handleForgotPassword}
-                >
-                  Ai uitat parola?
-                </Button>
-              </div>
+              <Label htmlFor="password">Parolă</Label>
               <Input
                 id="password"
                 type="password"
