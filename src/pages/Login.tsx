@@ -18,73 +18,89 @@ const Login = () => {
 
   // Obținem IP-ul intern la încărcarea componentei
   useEffect(() => {
-    const getInternalIp = async () => {
+    const detectInternalIp = async () => {
       try {
-        // Încercăm să obținem IP-ul intern prin comunicare cu serverul
-        const response = await fetch('/api/get-client-ip', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.ip) {
-            console.log("IP intern detectat de server:", data.ip);
-            setInternalIp(data.ip);
-          } else {
-            console.log("Serverul nu a putut detecta IP-ul");
-            setInternalIp("necunoscut (server)");
-          }
+        // Metodă mai robustă pentru detectarea IP-urilor în LAN
+        const interfaces = await getNetworkInterfaces();
+        if (interfaces && interfaces.length > 0) {
+          console.log("Network interfaces detected:", interfaces);
+          // Folosim primul IP intern valid detectat
+          setInternalIp(interfaces[0]);
         } else {
-          console.log("Eroare la obținerea IP-ului de la server");
-          setInternalIp("eroare de comunicare");
+          console.log("Nu s-a putut detecta niciun IP intern");
+          setInternalIp("necunoscut (client)");
         }
       } catch (error) {
-        console.error("Eroare la obținerea IP-ului intern:", error);
-        setInternalIp("eroare de comunicare");
-        
-        // Fallback la metoda RTCPeerConnection dacă API-ul nu funcționează
-        try {
-          // Folosim RTCPeerConnection pentru a obține IP-ul intern
-          const pc = new RTCPeerConnection({ iceServers: [] });
-          pc.createDataChannel("");
-          
-          pc.onicecandidate = (event) => {
-            if (!event.candidate) return;
-            
-            // Căutăm adresele IPv4 interne (regex pentru adrese 10.x.x.x, 172.16-31.x.x sau 192.168.x.x)
-            const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
-            const ipMatch = ipRegex.exec(event.candidate.candidate);
-            
-            if (ipMatch && ipMatch[1]) {
-              const ip = ipMatch[1];
-              
-              // Verificăm dacă este un IP intern
-              if (
-                ip.startsWith('10.') || 
-                ip.startsWith('192.168.') || 
-                /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)
-              ) {
-                console.log("IP intern detectat prin RTCPeerConnection:", ip);
-                setInternalIp(ip);
-                pc.onicecandidate = null;
-                pc.close();
-              }
-            }
-          };
-          
-          // Inițiem procesul de obținere a candidaților ICE
-          await pc.createOffer().then(offer => pc.setLocalDescription(offer));
-        } catch (rtcError) {
-          console.error("Eroare la metoda fallback RTCPeerConnection:", rtcError);
-        }
+        console.error("Eroare la detectarea IP-ului intern:", error);
+        setInternalIp("necunoscut (eroare)");
       }
     };
-    
-    getInternalIp();
+
+    detectInternalIp();
   }, []);
+
+  // Funcție pentru a obține toate interfețele de rețea
+  const getNetworkInterfaces = () => {
+    return new Promise<string[]>((resolve) => {
+      const ips: string[] = [];
+
+      // Folosim WebRTC pentru a descoperi toate IP-urile
+      try {
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        });
+
+        // Timeout pentru a ne asigura că nu așteptăm la infinit
+        const timeoutId = setTimeout(() => {
+          pc.close();
+          console.log("Timeout la detectarea IP-urilor, returnăm ce am găsit:", ips);
+          resolve(ips.length > 0 ? ips : []);
+        }, 2000);
+
+        pc.createDataChannel("");
+        
+        pc.onicecandidate = (event) => {
+          if (!event.candidate) return;
+          
+          // Regex optimizat pentru adrese IP private (LAN)
+          const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
+          const ipMatch = ipRegex.exec(event.candidate.candidate);
+          
+          if (ipMatch && ipMatch[1]) {
+            const ip = ipMatch[1];
+            
+            // Verificăm dacă este un IP intern/privat
+            if (
+              ip.startsWith('10.') || 
+              ip.startsWith('192.168.') || 
+              /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip) ||
+              ip.startsWith('169.254.') // Link-local addresses
+            ) {
+              if (!ips.includes(ip)) {
+                console.log("IP intern detectat:", ip);
+                ips.push(ip);
+              }
+            }
+          }
+        };
+
+        // După ce am colectat toate candidații ICE, returnăm IP-urile
+        pc.onicegatheringstatechange = () => {
+          if (pc.iceGatheringState === 'complete') {
+            clearTimeout(timeoutId);
+            pc.close();
+            console.log("Colectare IP-uri completă:", ips);
+            resolve(ips);
+          }
+        };
+        
+        pc.createOffer().then(offer => pc.setLocalDescription(offer));
+      } catch (error) {
+        console.error("Eroare la obținerea interfețelor de rețea:", error);
+        resolve([]);
+      }
+    });
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
