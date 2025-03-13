@@ -18,6 +18,13 @@ export interface LogRequest {
   applicationName?: string;
 }
 
+export interface SSHCommandRequest {
+  ip: string;
+  sshUsername?: string;
+  sshPassword?: string;
+  command: string;
+}
+
 export interface LogEntry {
   timestamp: string;
   level: "info" | "warning" | "error" | "debug";

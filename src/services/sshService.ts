@@ -1,6 +1,6 @@
 
 import axios from 'axios';
-import { Machine, LogEntry, LogRequest } from '@/types';
+import { Machine, LogEntry, LogRequest, SSHCommandRequest } from '@/types';
 import { appConfig } from '@/config/appConfig';
 
 // Folosim URL-ul API din configurație
@@ -32,6 +32,19 @@ export const sshService = {
       return response.data;
     } catch (error) {
       console.error('Eroare la testarea conexiunii:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Execută o comandă SSH pe o mașină remote
+   */
+  executeCommand: async (request: SSHCommandRequest): Promise<{ success: boolean; output: string }> => {
+    try {
+      const response = await axios.post(`${API_URL}/execute-command`, request);
+      return response.data;
+    } catch (error) {
+      console.error('Eroare la executarea comenzii:', error);
       throw error;
     }
   }

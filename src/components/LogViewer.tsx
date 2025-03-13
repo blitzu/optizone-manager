@@ -1,16 +1,24 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Download, Terminal, Calendar as CalendarIcon, ArrowDown } from "lucide-react";
+import { 
+  AlertCircle, 
+  Download, 
+  Terminal as TerminalIcon, 
+  Calendar as CalendarIcon, 
+  ArrowDown,
+  FileText,
+  RefreshCw
+} from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatDateTime } from "@/utils/dateUtils";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { sshService } from "@/services/sshService";
 
 interface LogViewerProps {
@@ -25,31 +33,42 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const [endDateTime, setEndDateTime] = useState<Date>();
   const [applicationName, setApplicationName] = useState<string>("aixp_ee");
   const [autoScroll, setAutoScroll] = useState(true);
+  const [terminalCommand, setTerminalCommand] = useState<string>("");
+  const [terminalOutput, setTerminalOutput] = useState<string>("");
+  const [terminalHistory, setTerminalHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [activeView, setActiveView] = useState<"logs" | "terminal">("logs");
+  
   const liveIntervalRef = useRef<number>();
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const terminalInputRef = useRef<HTMLInputElement>(null);
+  const terminalOutputRef = useRef<HTMLDivElement>(null);
 
+  // Function to get colors for log levels (MobaXterm style)
   const getLevelColor = (level: LogEntry['level']) => {
     switch (level) {
-      case "info": return "text-blue-500";
-      case "warning": return "text-amber-500";
-      case "error": return "text-red-500";
-      case "debug": return "text-purple-500";
-      default: return "";
+      case "info": return "text-white"; // Normal text in MobaXterm
+      case "warning": return "text-yellow-400"; // Yellow in MobaXterm
+      case "error": return "text-red-500"; // Red in MobaXterm
+      case "debug": return "text-blue-400"; // Light blue in MobaXterm
+      default: return "text-white";
     }
   };
 
+  // Function to color components (MobaXterm style)
   const getComponentColor = (identifier: string | undefined) => {
-    if (!identifier) return "";
+    if (!identifier) return "text-gray-400";
     
     const componentColors: Record<string, string> = {
       "MAIN": "text-green-400",
-      "BP": "text-yellow-400",
+      "BP": "text-yellow-400", 
       "MQ": "text-cyan-400",
       "sh": "text-pink-400"
     };
     
     for (const [key, color] of Object.entries(componentColors)) {
-      if (identifier.startsWith(key)) {
+      if (identifier.includes(key)) {
         return color;
       }
     }
@@ -87,6 +106,11 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const showLiveLog = () => {
+    setActiveView("logs");
+    startLiveMode();
   };
 
   const startLiveMode = () => {
@@ -148,6 +172,125 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     }
   };
 
+  const executeCommand = async () => {
+    if (!terminalCommand.trim()) return;
+    
+    setIsExecuting(true);
+    // Add command to terminal output
+    setTerminalOutput(prev => 
+      prev + `\n$ ${terminalCommand}\n`
+    );
+    
+    // Add to history
+    setTerminalHistory(prev => [...prev, terminalCommand]);
+    setHistoryIndex(-1);
+    
+    try {
+      const response = await sshService.executeCommand({
+        ip: machine.ip,
+        sshUsername: machine.sshUsername,
+        sshPassword: machine.sshPassword,
+        command: terminalCommand
+      });
+      
+      // Update terminal output with command result
+      setTerminalOutput(prev => 
+        prev + `${response.output}\n`
+      );
+      
+    } catch (error) {
+      console.error('Eroare la executarea comenzii:', error);
+      // Update terminal output with error
+      setTerminalOutput(prev => 
+        prev + `Eroare: ${error.message || 'Nu s-a putut executa comanda'}\n`
+      );
+      
+      toast({
+        title: "Eroare",
+        description: "Nu s-a putut executa comanda. Verificați conexiunea SSH.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExecuting(false);
+      setTerminalCommand("");
+      setTimeout(() => {
+        scrollTerminalToBottom();
+      }, 100);
+    }
+  };
+
+  const restartEEService = async () => {
+    setActiveView("terminal");
+    setIsExecuting(true);
+    setTerminalOutput(prev => 
+      prev + "\n$ sudo systemctl restart aixp_ee\n"
+    );
+    
+    try {
+      const response = await sshService.executeCommand({
+        ip: machine.ip,
+        sshUsername: machine.sshUsername,
+        sshPassword: machine.sshPassword,
+        command: "sudo systemctl restart aixp_ee"
+      });
+      
+      setTerminalOutput(prev => 
+        prev + `${response.output}\nServiciul aixp_ee a fost repornit.\n`
+      );
+      
+      toast({
+        title: "Serviciu repornit",
+        description: "Serviciul aixp_ee a fost repornit cu succes."
+      });
+      
+    } catch (error) {
+      console.error('Eroare la repornirea serviciului:', error);
+      setTerminalOutput(prev => 
+        prev + `Eroare: ${error.message || 'Nu s-a putut reporni serviciul'}\n`
+      );
+      
+      toast({
+        title: "Eroare",
+        description: "Nu s-a putut reporni serviciul. Verificați conexiunea SSH și permisiunile.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExecuting(false);
+      setTimeout(() => {
+        scrollTerminalToBottom();
+      }, 100);
+    }
+  };
+
+  const handleTerminalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Handle Up Arrow for history
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (terminalHistory.length > 0 && historyIndex < terminalHistory.length - 1) {
+        const newIndex = historyIndex + 1;
+        setHistoryIndex(newIndex);
+        setTerminalCommand(terminalHistory[terminalHistory.length - 1 - newIndex]);
+      }
+    }
+    // Handle Down Arrow for history
+    else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (historyIndex > 0) {
+        const newIndex = historyIndex - 1;
+        setHistoryIndex(newIndex);
+        setTerminalCommand(terminalHistory[terminalHistory.length - 1 - newIndex]);
+      } else if (historyIndex === 0) {
+        setHistoryIndex(-1);
+        setTerminalCommand("");
+      }
+    }
+    // Handle Enter key
+    else if (e.key === "Enter" && !isExecuting) {
+      e.preventDefault();
+      executeCommand();
+    }
+  };
+
   const downloadLogs = () => {
     const formattedLogs = logs.map(log => 
       `[${formatDateTime(log.timestamp)}] [${log.level.toUpperCase()}] ${log.message}`
@@ -176,6 +319,13 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     }
   };
 
+  const scrollTerminalToBottom = () => {
+    if (terminalOutputRef.current) {
+      const container = terminalOutputRef.current;
+      container.scrollTop = container.scrollHeight;
+    }
+  };
+
   const handleScroll = () => {
     if (!logContainerRef.current) return;
     
@@ -187,9 +337,18 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     }
   };
 
+  const handleTerminalScroll = () => {
+    // Terminal stays scrolled to bottom automatically when active
+  };
+
   useEffect(() => {
     stopLiveMode();
     fetchLogData();
+    
+    // Clear terminal output when changing machines
+    setTerminalOutput("");
+    setTerminalHistory([]);
+    setHistoryIndex(-1);
     
     return () => {
       stopLiveMode();
@@ -201,23 +360,31 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     return format(date, "dd.MM.yyyy HH:mm");
   };
 
+  // Function to parse and format log lines (MobaXterm style)
   const renderLogLine = (log: LogEntry, index: number) => {
+    // Detect component from message or use syslogIdentifier
     let component = log.syslogIdentifier || "system";
     let message = log.message;
     
+    // Extract component from brackers if present
     const bracketMatch = message.match(/^\[(.*?)\](.*)/);
     if (bracketMatch) {
       component = bracketMatch[1];
       message = bracketMatch[2].trim();
     }
     
+    // Use MobaXterm-like colors for different log parts
     return (
       <div key={index} className={`mb-1 font-mono ${getLevelColor(log.level)}`}>
         <span className="text-gray-400">
           [{formatDateTime(log.timestamp)}]
         </span>{' '}
-        <span className="font-semibold">[{log.level.toUpperCase()}]</span>{' '}
-        <span className={getComponentColor(component)}>[{component}]</span>{' '}
+        <span className={`font-semibold ${getLevelColor(log.level)}`}>
+          [{log.level.toUpperCase()}]
+        </span>{' '}
+        <span className={getComponentColor(component)}>
+          [{component}]
+        </span>{' '}
         {message}
       </div>
     );
@@ -227,292 +394,122 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     <Card className="border-0 rounded-none shadow-none">
       <CardHeader className="px-6">
         <CardTitle className="flex justify-between items-center">
-          <span>Log-uri pentru {machine.hostname} ({machine.ip})</span>
+          <span>Terminal pentru {machine.hostname} ({machine.ip})</span>
           <div className="flex gap-2">
             <Button 
-              variant={liveMode ? "destructive" : "default"} 
-              onClick={liveMode ? stopLiveMode : startLiveMode}
-              disabled={loading}
+              variant="outline" 
+              onClick={() => setActiveView("terminal")}
+              className={activeView === "terminal" ? "bg-secondary" : ""}
             >
-              {liveMode ? "Oprește Live" : "Pornește Live"}
+              <TerminalIcon className="h-4 w-4 mr-2" />
+              Terminal
             </Button>
             <Button 
               variant="outline" 
-              onClick={downloadLogs} 
-              disabled={logs.length === 0 || loading}
+              onClick={showLiveLog}
+              className={activeView === "logs" && liveMode ? "bg-secondary" : ""}
             >
-              <Download className="h-4 w-4 mr-2" />
-              Descarcă log-uri
+              <FileText className="h-4 w-4 mr-2" />
+              Show log
             </Button>
+            <Button 
+              variant="outline" 
+              onClick={restartEEService}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Restart EE
+            </Button>
+            {activeView === "logs" && (
+              <Button 
+                variant="outline" 
+                onClick={downloadLogs} 
+                disabled={logs.length === 0 || loading}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Descarcă log-uri
+              </Button>
+            )}
           </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="px-0">
-        <Tabs defaultValue="view" className="w-full">
-          <div className="px-6">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="view">Vizualizare</TabsTrigger>
-              <TabsTrigger value="filter">Filtrare</TabsTrigger>
-            </TabsList>
-          </div>
-          
-          <TabsContent value="view">
-            <div className="relative">
-              <div 
-                ref={logContainerRef}
-                onScroll={handleScroll}
-                className="border-0 h-[70vh] overflow-auto bg-black text-white p-4 font-mono text-sm w-full"
-              >
-                {loading ? (
-                  <div className="flex justify-center items-center h-full">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                  </div>
-                ) : logs.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                    <Terminal className="h-12 w-12 mb-2" />
-                    <p>Nu există log-uri disponibile</p>
-                    <p className="text-xs mt-2">Începeți modul live sau filtrați după dată pentru a vedea log-uri</p>
-                  </div>
-                ) : (
-                  <div>
-                    {logs.map((log, index) => renderLogLine(log, index))}
-                  </div>
-                )}
-              </div>
-              
-              {!autoScroll && logs.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="absolute bottom-4 right-4 bg-secondary text-primary z-10"
-                  onClick={() => {
-                    setAutoScroll(true);
-                    scrollToBottom();
-                  }}
-                >
-                  <ArrowDown className="h-4 w-4" />
-                </Button>
+        {activeView === "logs" ? (
+          <div className="relative">
+            <div 
+              ref={logContainerRef}
+              onScroll={handleScroll}
+              className="border-0 h-[70vh] overflow-auto bg-black text-white p-4 font-mono text-sm w-full"
+            >
+              {loading ? (
+                <div className="flex justify-center items-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                </div>
+              ) : logs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <TerminalIcon className="h-12 w-12 mb-2" />
+                  <p>Nu există log-uri disponibile</p>
+                  <p className="text-xs mt-2">Apăsați butonul "Show log" pentru a afișa logurile în timp real</p>
+                </div>
+              ) : (
+                <div>
+                  {logs.map((log, index) => renderLogLine(log, index))}
+                </div>
               )}
             </div>
-          </TabsContent>
-          
-          <TabsContent value="filter" className="px-6">
-            <div className="grid gap-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Numele aplicației/serviciului</label>
-                  <Input
-                    placeholder="Introduceți numele aplicației (ex: aixp_ee)"
-                    value={applicationName}
-                    onChange={(e) => setApplicationName(e.target.value)}
-                    className="mb-4"
-                  />
-                  <div className="flex flex-col space-y-1 text-xs text-muted-foreground">
-                    <p>Introduceți numele serviciului systemd (ex: aixp_ee)</p>
-                    <p>Valoarea implicită este "aixp_ee"</p>
-                  </div>
+            
+            {!autoScroll && logs.length > 0 && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="absolute bottom-4 right-4 bg-secondary text-primary z-10"
+                onClick={() => {
+                  setAutoScroll(true);
+                  scrollToBottom();
+                }}
+              >
+                <ArrowDown className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="relative">
+            <div className="flex flex-col h-[70vh] bg-black text-white font-mono">
+              <div 
+                ref={terminalOutputRef}
+                className="flex-1 p-4 overflow-auto"
+              >
+                <div className="text-green-400 mb-4">
+                  Conectat la {machine.hostname} ({machine.ip}) ca {machine.sshUsername}
+                  <br />
+                  Introduceți comenzi de terminal:
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">De la data și ora</label>
-                    <div className="relative">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start text-left"
-                          >
-                            {startDateTime ? (
-                              formatDateTimeDisplay(startDateTime)
-                            ) : (
-                              "Alege data și ora de început"
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <div className="p-3">
-                            <div className="space-y-3">
-                              <Calendar
-                                mode="single"
-                                selected={startDateTime}
-                                onSelect={(date) => {
-                                  if (date) {
-                                    const newDate = new Date(date);
-                                    if (startDateTime) {
-                                      newDate.setHours(
-                                        startDateTime.getHours(),
-                                        startDateTime.getMinutes(),
-                                        0, 0
-                                      );
-                                    } else {
-                                      newDate.setHours(0, 0, 0, 0);
-                                    }
-                                    setStartDateTime(newDate);
-                                  }
-                                }}
-                                initialFocus
-                                className="pointer-events-auto"
-                              />
-                              
-                              <div className="px-1 pb-2">
-                                <label className="text-xs font-medium block mb-1">Ora:</label>
-                                <div className="flex items-center space-x-2">
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    max={23}
-                                    placeholder="Ore"
-                                    className="w-16 text-center"
-                                    value={startDateTime ? startDateTime.getHours() : ""}
-                                    onChange={(e) => {
-                                      const hours = parseInt(e.target.value);
-                                      if (!isNaN(hours) && hours >= 0 && hours <= 23) {
-                                        const newDate = new Date(startDateTime || new Date());
-                                        newDate.setHours(hours);
-                                        setStartDateTime(newDate);
-                                      }
-                                    }}
-                                  />
-                                  <span>:</span>
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    max={59}
-                                    placeholder="Minute"
-                                    className="w-16 text-center"
-                                    value={startDateTime ? startDateTime.getMinutes() : ""}
-                                    onChange={(e) => {
-                                      const minutes = parseInt(e.target.value);
-                                      if (!isNaN(minutes) && minutes >= 0 && minutes <= 59) {
-                                        const newDate = new Date(startDateTime || new Date());
-                                        newDate.setMinutes(minutes);
-                                        setStartDateTime(newDate);
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Până la data și ora</label>
-                    <div className="relative">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start text-left"
-                          >
-                            {endDateTime ? (
-                              formatDateTimeDisplay(endDateTime)
-                            ) : (
-                              "Alege data și ora de sfârșit"
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <div className="p-3">
-                            <div className="space-y-3">
-                              <Calendar
-                                mode="single"
-                                selected={endDateTime}
-                                onSelect={(date) => {
-                                  if (date) {
-                                    const newDate = new Date(date);
-                                    if (endDateTime) {
-                                      newDate.setHours(
-                                        endDateTime.getHours(),
-                                        endDateTime.getMinutes(),
-                                        0, 0
-                                      );
-                                    } else {
-                                      newDate.setHours(23, 59, 0, 0);
-                                    }
-                                    setEndDateTime(newDate);
-                                  }
-                                }}
-                                initialFocus
-                                className="pointer-events-auto"
-                              />
-                              
-                              <div className="px-1 pb-2">
-                                <label className="text-xs font-medium block mb-1">Ora:</label>
-                                <div className="flex items-center space-x-2">
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    max={23}
-                                    placeholder="Ore"
-                                    className="w-16 text-center"
-                                    value={endDateTime ? endDateTime.getHours() : ""}
-                                    onChange={(e) => {
-                                      const hours = parseInt(e.target.value);
-                                      if (!isNaN(hours) && hours >= 0 && hours <= 23) {
-                                        const newDate = new Date(endDateTime || new Date());
-                                        newDate.setHours(hours);
-                                        setEndDateTime(newDate);
-                                      }
-                                    }}
-                                  />
-                                  <span>:</span>
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    max={59}
-                                    placeholder="Minute"
-                                    className="w-16 text-center"
-                                    value={endDateTime ? endDateTime.getMinutes() : ""}
-                                    onChange={(e) => {
-                                      const minutes = parseInt(e.target.value);
-                                      if (!isNaN(minutes) && minutes >= 0 && minutes <= 59) {
-                                        const newDate = new Date(endDateTime || new Date());
-                                        newDate.setMinutes(minutes);
-                                        setEndDateTime(newDate);
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                </div>
-                
-                {startDateTime && endDateTime && startDateTime > endDateTime && (
-                  <div className="flex items-center rounded-md bg-amber-100 text-amber-800 px-4 py-2 text-sm">
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    Intervalul de timp selectat nu este valid
+                {terminalOutput ? (
+                  <pre className="whitespace-pre-wrap">{terminalOutput}</pre>
+                ) : (
+                  <div className="text-gray-500 italic">
+                    Introduceți o comandă și apăsați Enter pentru a o executa
                   </div>
                 )}
-                
-                <Button 
-                  onClick={fetchLogData} 
-                  disabled={loading || (startDateTime && endDateTime && startDateTime > endDateTime)}
-                  className="w-full"
-                >
-                  {loading ? 
-                    <div className="flex items-center">
-                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-background border-t-transparent rounded-full"></div>
-                      Se încarcă...
-                    </div> : 
-                    "Filtrează log-uri"
-                  }
-                </Button>
+              </div>
+              <div className="border-t border-gray-700 p-2 flex items-center">
+                <span className="text-green-400 mr-2">$</span>
+                <Input
+                  ref={terminalInputRef}
+                  value={terminalCommand}
+                  onChange={(e) => setTerminalCommand(e.target.value)}
+                  onKeyDown={handleTerminalKeyDown}
+                  placeholder="Introduceți o comandă..."
+                  disabled={isExecuting}
+                  className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-white"
+                  autoFocus
+                />
+                {isExecuting && (
+                  <div className="animate-spin ml-2 h-4 w-4 border-2 border-gray-400 border-t-white rounded-full"></div>
+                )}
               </div>
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

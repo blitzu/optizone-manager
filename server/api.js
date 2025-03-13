@@ -61,6 +61,71 @@ app.post('/api/test-connection', (req, res) => {
   });
 });
 
+// Endpoint pentru executarea comenzilor SSH
+app.post('/api/execute-command', (req, res) => {
+  const { ip, sshUsername, sshPassword, command } = req.body;
+  
+  if (!ip || !sshUsername || !sshPassword || !command) {
+    return res.status(400).json({ 
+      success: false, 
+      output: 'Lipsesc date necesare pentru executarea comenzii' 
+    });
+  }
+  
+  const conn = new Client();
+  let commandOutput = '';
+  
+  conn.on('ready', () => {
+    console.log(`Conexiune SSH stabilită pentru executarea comenzii la ${ip}`);
+    
+    conn.exec(command, (err, stream) => {
+      if (err) {
+        conn.end();
+        return res.status(500).json({ 
+          success: false, 
+          output: `Eroare la executarea comenzii: ${err.message}` 
+        });
+      }
+      
+      stream.on('data', (data) => {
+        commandOutput += data.toString();
+      });
+      
+      stream.stderr.on('data', (data) => {
+        commandOutput += data.toString();
+      });
+      
+      stream.on('close', (code) => {
+        conn.end();
+        res.json({ 
+          success: code === 0, 
+          output: commandOutput 
+        });
+      });
+      
+      stream.on('error', (streamErr) => {
+        conn.end();
+        res.status(500).json({ 
+          success: false, 
+          output: `Eroare în stream: ${streamErr.message}` 
+        });
+      });
+    });
+  }).on('error', (err) => {
+    console.error(`Eroare la conexiunea SSH către ${ip}:`, err);
+    res.status(500).json({ 
+      success: false, 
+      output: `Eroare la conexiunea SSH: ${err.message}` 
+    });
+  }).connect({
+    host: ip,
+    port: 22,
+    username: sshUsername,
+    password: sshPassword,
+    readyTimeout: 10000,
+  });
+});
+
 // Endpoint pentru obținerea log-urilor
 app.post('/api/logs', (req, res) => {
   const { ip, sshUsername, sshPassword, startDate, endDate, liveMode, applicationName } = req.body;
