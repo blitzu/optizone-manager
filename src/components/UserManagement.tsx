@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -150,7 +149,6 @@ const UserManagement = () => {
 
   const handleDeleteUser = async () => {
     if (userToDelete) {
-      // Check if trying to delete superuser (user with id "1")
       if (userToDelete === "1") {
         toast({
           title: "Operațiune interzisă",
@@ -223,7 +221,6 @@ const UserManagement = () => {
   const handleChangeRole = async () => {
     if (!userToManage) return;
     
-    // Prevent changing role of superuser (user with id "1")
     if (userToManage.id === "1" && userToManage.role !== newRole) {
       toast({
         title: "Operațiune interzisă",
@@ -377,7 +374,7 @@ const UserManagement = () => {
                       <p className="font-medium">{user.username}</p>
                       <p className="text-sm text-muted-foreground">
                         {user.role === 'admin' ? 'Administrator' : 'Utilizator'}
-                        {isSuperUser(user.id) && ' (Superuser)'}
+                        {isSuperUser(user.id) && ' (REALIZATORUL APLICATIEI)'}
                       </p>
                     </div>
                   </div>
@@ -389,6 +386,7 @@ const UserManagement = () => {
                         setUserToManage(user);
                         setShowChangePasswordDialog(true);
                       }}
+                      disabled={isSuperUser(user.id)}
                     >
                       <Key className="h-4 w-4" />
                     </Button>
@@ -396,6 +394,7 @@ const UserManagement = () => {
                       variant="outline" 
                       size="sm"
                       onClick={() => handleResetPassword(user)}
+                      disabled={isSuperUser(user.id)}
                     >
                       <RefreshCw className="h-4 w-4" />
                     </Button>
@@ -598,3 +597,4 @@ const UserManagement = () => {
 };
 
 export default UserManagement;
+

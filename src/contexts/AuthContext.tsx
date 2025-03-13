@@ -416,6 +416,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return null;
       }
       
+      if (userId === "1") {
+        toast({
+          title: "Operațiune interzisă",
+          description: "Nu se poate reseta parola pentru REALIZATORUL APLICATIEI.",
+          variant: "destructive",
+        });
+        return null;
+      }
+      
       const response = await fetch(`${API_URL}/users/${userId}/reset-password`, {
         method: 'POST',
         headers: {
@@ -444,6 +453,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       const savedUsers = localStorage.getItem("optizone-users");
       if (!savedUsers) return null;
+      
+      if (userId === "1") {
+        toast({
+          title: "Operațiune interzisă",
+          description: "Nu se poate reseta parola pentru REALIZATORUL APLICATIEI.",
+          variant: "destructive",
+        });
+        return null;
+      }
       
       const users = JSON.parse(savedUsers);
       const user = users.find((u: User) => u.id === userId);
@@ -484,6 +502,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
       
+      if (userId === "1") {
+        toast({
+          title: "Operațiune interzisă",
+          description: "Nu se poate schimba parola pentru REALIZATORUL APLICATIEI.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
       const response = await fetch(`${API_URL}/users/${userId}/change-password`, {
         method: 'POST',
         headers: {
@@ -515,6 +542,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const savedUsers = localStorage.getItem("optizone-users");
       if (!savedUsers) return false;
       
+      if (userId === "1") {
+        toast({
+          title: "Operațiune interzisă",
+          description: "Nu se poate schimba parola pentru REALIZATORUL APLICATIEI.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
       const users = JSON.parse(savedUsers);
       const user = users.find((u: User) => u.id === userId);
       
@@ -536,6 +572,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({
         title: "Succes",
         description: "Parola utilizatorului a fost schimbată cu succes.",
+        variant: "success",
       });
       return true;
     }
