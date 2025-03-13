@@ -291,7 +291,8 @@ const UserManagement = () => {
         month: '2-digit',
         year: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        second: '2-digit'
       });
     } catch (error) {
       console.error("Error formatting date:", error, "Date value:", date);
@@ -412,22 +413,9 @@ const UserManagement = () => {
                       </p>
                       
                       {user.lastLogin ? (
-                        <div className="flex items-center space-x-3 mt-1 text-xs text-gray-500">
-                          <div className="flex items-center">
-                            <Clock className="h-3 w-3 mr-1" />
-                            <span>Ultimul login: {formatLastLogin(user.lastLogin.date)}</span>
-                          </div>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger className="flex items-center">
-                                <Globe className="h-3 w-3 mr-1" />
-                                <span>IP: {user.lastLogin.ipAddress || 'necunoscut'}</span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Adresa IP la ultima autentificare</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                        <div className="flex items-center mt-1 text-xs text-gray-500">
+                          <Clock className="h-3 w-3 mr-1" />
+                          <span>Ultimul login: {formatLastLogin(user.lastLogin.date)}</span>
                         </div>
                       ) : (
                         <div className="flex items-center mt-1 text-xs text-gray-500">
