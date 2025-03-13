@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
+import { formatDateTime } from "@/utils/dateUtils";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -46,7 +47,8 @@ const Login = () => {
         // Show lastLogin info in toast if available
         if (result.user?.lastLogin) {
           console.log("LastLogin data:", result.user.lastLogin);
-          const lastLoginDate = new Date(result.user.lastLogin.date).toLocaleString('ro-RO');
+          // Format date with seconds using the formatDateTime utility
+          const lastLoginDate = formatDateTime(result.user.lastLogin.date);
           toast({
             title: "Informații de autentificare",
             description: `Ultima autentificare: ${lastLoginDate}`,
