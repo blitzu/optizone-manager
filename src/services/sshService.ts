@@ -33,6 +33,34 @@ export const sshService = {
   },
   
   /**
+   * Descarcă log-uri brute (nealterate) de pe o mașină remote
+   */
+  downloadRawLogs: async (request: LogRequest): Promise<string> => {
+    try {
+      const token = localStorage.getItem('auth-token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      // Adăugăm un parametru pentru a indica că dorim log-uri brute
+      const requestWithRawFlag = {
+        ...request,
+        rawFormat: true
+      };
+      
+      const response = await axios.post(`${API_URL}/logs/raw`, requestWithRawFlag, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return response.data.rawLogs;
+    } catch (error) {
+      console.error('Eroare la descărcarea log-urilor brute:', error);
+      throw error;
+    }
+  },
+  
+  /**
    * Testează conexiunea SSH la o mașină
    */
   testConnection: async (machine: Machine): Promise<{ success: boolean; message: string }> => {
