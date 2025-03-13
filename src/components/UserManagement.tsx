@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -414,7 +415,106 @@ const UserManagement = () => {
           <div className="py-4">
             <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md">
               <code className="font-mono">{tempPassword}</code>
-              
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPasswordDialog(false);
+              }}
+            >
+              Închide
+            </Button>
+            <Button
+              onClick={() => {
+                // Close this dialog and open the email message dialog
+                setShowPasswordDialog(false);
+                
+                if (userToManage) {
+                  setNewUserData({
+                    username: userToManage.username,
+                    password: tempPassword,
+                    requirePasswordChange: true,
+                    role: userToManage.role
+                  });
+                  setShowEmailMessageDialog(true);
+                }
+              }}
+            >
+              Trimite email
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schimbare parolă</DialogTitle>
+            <DialogDescription>
+              Pentru utilizatorul: {userToManage?.username}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <input
+                type="checkbox"
+                id="generateRandomPasswordForChange"
+                checked={generateRandomPassword}
+                onChange={(e) => setGenerateRandomPassword(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="generateRandomPasswordForChange" className="cursor-pointer">
+                Generează parolă aleatorie
+              </Label>
+            </div>
+            
+            {!generateRandomPassword && (
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Parolă nouă</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required={!generateRandomPassword}
+                />
+              </div>
+            )}
+            
+            <div className="flex items-center space-x-2 my-2">
+              <input
+                type="checkbox"
+                id="requirePasswordChangeDialog"
+                checked={requirePasswordChange}
+                onChange={(e) => setRequirePasswordChange(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="requirePasswordChangeDialog" className="cursor-pointer">
+                Solicită schimbarea parolei la prima autentificare
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChangePasswordDialog(false)}>
+              Anulează
+            </Button>
+            <Button onClick={handleChangePassword}>
+              Schimbă parola
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Role Dialog */}
+      <Dialog open={showChangeRoleDialog} onOpenChange={setShowChangeRoleDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schimbare rol</DialogTitle>
+            <DialogDescription>
+              Pentru utilizatorul: {userToManage?.username}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
