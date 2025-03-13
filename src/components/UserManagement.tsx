@@ -41,6 +41,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
+import EmailMessageDialog from "./EmailMessageDialog";
 
 const UserManagement = () => {
   const { getAllUsers, createUser, deleteUser, resetUserPassword, changeUserPassword } = useAuth();
@@ -59,6 +60,12 @@ const UserManagement = () => {
   const [newPassword, setNewPassword] = useState("");
   const [generateRandomPassword, setGenerateRandomPassword] = useState(false);
   const [requirePasswordChange, setRequirePasswordChange] = useState(true);
+  const [showEmailMessageDialog, setShowEmailMessageDialog] = useState(false);
+  const [newUserData, setNewUserData] = useState<{username: string, password: string | null, requirePasswordChange: boolean}>({
+    username: "",
+    password: null,
+    requirePasswordChange: true
+  });
 
   useEffect(() => {
     loadUsers();
@@ -99,11 +106,15 @@ const UserManagement = () => {
       const success = await createUser(username, finalPassword, role, requirePasswordChange);
       
       if (success) {
-        if (generateRandomPassword) {
-          setTempPassword(finalPassword);
-          setShowPasswordDialog(true);
-        }
+        // Show email message dialog with user data
+        setNewUserData({
+          username: username,
+          password: finalPassword,
+          requirePasswordChange: requirePasswordChange
+        });
+        setShowEmailMessageDialog(true);
         
+        // Reset form
         setUsername("");
         setPassword("");
         setRole("user");
@@ -159,10 +170,13 @@ const UserManagement = () => {
       const success = await changeUserPassword(userToManage.id, finalPassword, requirePasswordChange);
       
       if (success) {
-        if (generateRandomPassword) {
-          setTempPassword(finalPassword);
-          setShowPasswordDialog(true);
-        }
+        // Show email message dialog with user data
+        setNewUserData({
+          username: userToManage.username,
+          password: finalPassword,
+          requirePasswordChange: requirePasswordChange
+        });
+        setShowEmailMessageDialog(true);
         
         setShowChangePasswordDialog(false);
         setNewPassword("");
@@ -451,6 +465,15 @@ const UserManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Email Message Dialog */}
+      <EmailMessageDialog
+        open={showEmailMessageDialog}
+        onOpenChange={setShowEmailMessageDialog}
+        username={newUserData.username}
+        password={newUserData.password}
+        requirePasswordChange={newUserData.requirePasswordChange}
+      />
     </div>
   );
 };
