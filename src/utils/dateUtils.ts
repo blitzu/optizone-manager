@@ -25,8 +25,12 @@ export const formatDateTime = (dateString: string): string => {
 };
 
 export const combineDateTime = (date: Date, timeString: string): Date => {
+  // Asigurăm-ne că lucram cu formatul 24h
   const [hours, minutes] = timeString.split(':').map(Number);
+  
+  // Creăm o nouă dată fără a modifica data originală
   const result = new Date(date);
+  // Setăm ora și minutele în format 24h
   result.setHours(hours, minutes, 0, 0);
   return result;
 };

@@ -13,21 +13,25 @@ const TimeInput = React.forwardRef<HTMLInputElement, TimeInputProps>(
     const [timeValue, setTimeValue] = React.useState(value || `${defaultHour}:${defaultMinute}`);
     
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      // Asigurăm-ne că valoarea este în format 24 ore
-      const newValue = e.target.value;
-      setTimeValue(newValue);
+      // Forțăm formatul 24 ore
+      let newValue = e.target.value;
       
-      if (onChange) {
-        // Creăm un nou eveniment sintetic pentru a păstra interfața
-        const syntheticEvent = {
-          ...e,
-          target: {
-            ...e.target,
-            value: newValue
-          }
-        } as React.ChangeEvent<HTMLInputElement>;
+      // Verificăm dacă avem o valoare validă
+      if (newValue) {
+        setTimeValue(newValue);
         
-        onChange(syntheticEvent);
+        if (onChange) {
+          // Creăm un nou eveniment sintetic pentru a păstra interfața
+          const syntheticEvent = {
+            ...e,
+            target: {
+              ...e.target,
+              value: newValue
+            }
+          } as React.ChangeEvent<HTMLInputElement>;
+          
+          onChange(syntheticEvent);
+        }
       }
     };
 
@@ -41,6 +45,7 @@ const TimeInput = React.forwardRef<HTMLInputElement, TimeInputProps>(
       <div className="time-input-24h">
         <input
           type="time"
+          inputMode="numeric"
           className={cn(
             "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
             className
@@ -48,6 +53,7 @@ const TimeInput = React.forwardRef<HTMLInputElement, TimeInputProps>(
           value={timeValue}
           onChange={handleChange}
           ref={ref}
+          pattern="[0-9]{2}:[0-9]{2}"
           {...props}
         />
         {/* Adaugă un text pentru a indica formatul 24h */}

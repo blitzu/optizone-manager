@@ -67,6 +67,19 @@ input[type="time"]::-webkit-inner-spin-button {
   margin: 0 !important;
 }
 
+/* Forțează formatul 24 ore și elimină posibilitatea de a selecta AM/PM */
+input[type="time"]::-webkit-datetime-edit-ampm-field {
+  display: none !important;
+}
+
+/* Ascunde complet orice selector de AM/PM */
+input[type="time"]::-webkit-clear-button,
+input[type="time"]::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  display: none !important;
+  margin: 0 !important;
+}
+
 /* Reguli pentru a forța formatul 24 ore */
 input[type="time"]::-webkit-datetime-edit-hour-field,
 input[type="time"]::-webkit-datetime-edit-minute-field {
@@ -92,6 +105,11 @@ input[type="time"]::-webkit-datetime-edit-minute-field {
   input[type="time"]::part(minute) {
     min-width: 1.5em;
     text-align: left;
+  }
+  
+  /* Ascunde AM/PM în Firefox */
+  input[type="time"]::part(dayPeriod) {
+    display: none !important;
   }
 }
 
