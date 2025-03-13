@@ -1,4 +1,3 @@
-
 /**
  * Server API Express pentru Optizone Fleet Manager
  * 
@@ -665,19 +664,11 @@ app.get('/api/machines', authenticateToken, (req, res) => {
   try {
     const machines = getMachines();
     
-    // Filtrăm mașinile în funcție de rolul utilizatorului
-    let filteredMachines;
-    if (req.user.role === 'admin') {
-      // Administratorii văd toate mașinile
-      filteredMachines = machines;
-    } else {
-      // Utilizatorii standard văd doar mașinile asociate cu ei sau fără proprietar
-      filteredMachines = machines.filter(m => !m.userId || m.userId === req.user.id);
-    }
-    
+    // Administratorii văd toate mașinile
+    // Utilizatorii standard de asemenea văd toate mașinile (modificăm aici)
     res.json({
       success: true,
-      machines: filteredMachines
+      machines: machines
     });
   } catch (error) {
     console.error("Eroare la obținerea mașinilor:", error);
