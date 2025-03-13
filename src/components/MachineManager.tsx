@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Machine } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Edit, Trash2, Server, Terminal } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { appConfig } from "@/config/appConfig";
 
 interface MachineManagerProps {
   machines: Machine[];
@@ -26,8 +26,8 @@ const MachineManager = ({
   const [currentMachine, setCurrentMachine] = useState<Partial<Machine>>({
     ip: "",
     hostname: "",
-    sshUsername: "gts",
-    sshPassword: "1qaz2wsx"
+    sshUsername: appConfig.defaultSshUsername,
+    sshPassword: appConfig.defaultSshPassword
   });
   const [isEditing, setIsEditing] = useState(false);
 
@@ -35,8 +35,8 @@ const MachineManager = ({
     setCurrentMachine({
       ip: "",
       hostname: "",
-      sshUsername: "gts",
-      sshPassword: "1qaz2wsx"
+      sshUsername: appConfig.defaultSshUsername,
+      sshPassword: appConfig.defaultSshPassword
     });
     setIsEditing(false);
   };
@@ -49,9 +49,8 @@ const MachineManager = ({
   const openEditDialog = (machine: Machine) => {
     setCurrentMachine({ 
       ...machine,
-      // Dacă mașina nu are credențiale SSH, setăm valorile implicite
-      sshUsername: machine.sshUsername || "gts",
-      sshPassword: machine.sshPassword || "1qaz2wsx"
+      sshUsername: machine.sshUsername || appConfig.defaultSshUsername,
+      sshPassword: machine.sshPassword || appConfig.defaultSshPassword
     });
     setIsEditing(true);
     setDialogOpen(true);
@@ -68,13 +67,11 @@ const MachineManager = ({
     }
 
     if (isEditing) {
-      // Editare mașină existentă
       const updatedMachines = machines.map(m => 
         m.id === currentMachine.id ? { ...currentMachine as Machine } : m
       );
       saveMachines(updatedMachines);
       
-      // Update selected machine if it was the one being edited
       if (selectedMachine?.id === currentMachine.id) {
         setSelectedMachine(currentMachine as Machine);
       }
@@ -84,7 +81,6 @@ const MachineManager = ({
         description: `Mașina ${currentMachine.hostname} a fost actualizată cu succes.`
       });
     } else {
-      // Adăugare mașină nouă
       const newMachine: Machine = {
         ...currentMachine as Omit<Machine, 'id'>,
         id: Date.now().toString()
@@ -125,7 +121,6 @@ const MachineManager = ({
       description: `Se conectează la ${machine.hostname} (${machine.ip}) cu utilizatorul ${machine.sshUsername || "gts"}...`,
     });
     
-    // În aplicația reală, aici s-ar face conectarea SSH
     setTimeout(() => {
       toast({
         title: "Informație",

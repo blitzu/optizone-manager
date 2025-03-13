@@ -11,6 +11,7 @@ import { Machine } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { sshService } from "@/services/sshService";
 import { toast } from "@/components/ui/use-toast";
+import { appConfig } from "@/config/appConfig";
 
 const Index = () => {
   const { currentUser, logout } = useAuth();
@@ -23,8 +24,8 @@ const Index = () => {
     // Asigură-te că toate mașinile au credențialele SSH implicite setate
     return parsedMachines.map((machine: Machine) => ({
       ...machine,
-      sshUsername: machine.sshUsername || "gts",
-      sshPassword: machine.sshPassword || "1qaz2wsx"
+      sshUsername: machine.sshUsername || appConfig.defaultSshUsername,
+      sshPassword: machine.sshPassword || appConfig.defaultSshPassword
     }));
   });
 
@@ -35,8 +36,8 @@ const Index = () => {
     if (machines.length > 0) {
       const updatedMachines = machines.map(machine => ({
         ...machine,
-        sshUsername: machine.sshUsername || "gts",
-        sshPassword: machine.sshPassword || "1qaz2wsx"
+        sshUsername: machine.sshUsername || appConfig.defaultSshUsername,
+        sshPassword: machine.sshPassword || appConfig.defaultSshPassword
       }));
       
       saveMachines(updatedMachines);

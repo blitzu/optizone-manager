@@ -1,0 +1,19 @@
+
+{
+  "name": "optizone-fleet-manager-server",
+  "version": "1.0.0",
+  "description": "Server API pentru Optizone Fleet Manager",
+  "main": "api.js",
+  "scripts": {
+    "start": "node api.js",
+    "dev": "nodemon api.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "ssh2": "^1.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}

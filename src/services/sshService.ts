@@ -1,9 +1,10 @@
 
 import axios from 'axios';
 import { Machine, LogEntry, LogRequest } from '@/types';
+import { appConfig } from '@/config/appConfig';
 
-// În mod normal, acest URL ar trebui să fie într-un fișier de configurare sau variabile de mediu
-const API_URL = 'http://localhost:3001/api';
+// Folosim URL-ul API din configurație
+const API_URL = appConfig.apiUrl;
 
 /**
  * Serviciu pentru conectarea la mașini prin SSH și extragerea log-urilor
@@ -21,7 +22,7 @@ export const sshService = {
       console.error('Eroare la extragerea log-urilor:', error);
       
       // Pentru testare, generăm log-uri simulate dacă backend-ul nu este disponibil
-      if (process.env.NODE_ENV === 'development') {
+      if (appConfig.env === 'development') {
         console.log('Folosim log-uri simulate în modul de dezvoltare');
         return generateMockLogs(request);
       }
@@ -42,7 +43,7 @@ export const sshService = {
       console.error('Eroare la testarea conexiunii:', error);
       
       // Pentru testare, simulăm un răspuns pozitiv dacă backend-ul nu este disponibil
-      if (process.env.NODE_ENV === 'development') {
+      if (appConfig.env === 'development') {
         // Simulăm o conexiune de succes în 80% din cazuri
         const success = Math.random() > 0.2;
         return {
