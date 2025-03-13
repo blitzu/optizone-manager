@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -47,7 +46,6 @@ ${requirePasswordChange ? "La prima autentificare va trebui să-ți schimbi paro
 În caz că întâmpini probleme cu autentificarea, te rog să mă contactezi.
 
 Cu stimă,
-Administratorul Optizone Log Manager
 `.trim();
 
   const copyToClipboard = () => {
