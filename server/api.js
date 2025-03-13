@@ -53,34 +53,74 @@ function getUsers() {
         role: "user"
       }
     ];
-    fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(defaultUsers, null, 2));
+    
+    try {
+      fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(defaultUsers, null, 2));
+    } catch (error) {
+      console.error(`EROARE CRITICĂ: Nu se poate scrie în fișierul ${USERS_FILE_PATH}`);
+      console.error(`Mesaj eroare: ${error.message}`);
+      console.error(`Asigurați-vă că utilizatorul care rulează procesul are permisiuni de scriere pentru directorul: ${__dirname}`);
+      console.error(`Tip: Încercați să rulați 'chown -R <user>:<group> ${__dirname}' sau 'chmod -R 775 ${__dirname}'`);
+    }
+    
     return defaultUsers;
   }
   
-  const usersData = fs.readFileSync(USERS_FILE_PATH, 'utf8');
-  return JSON.parse(usersData);
+  try {
+    const usersData = fs.readFileSync(USERS_FILE_PATH, 'utf8');
+    return JSON.parse(usersData);
+  } catch (error) {
+    console.error(`EROARE LA CITIREA UTILIZATORILOR: ${error.message}`);
+    return [];
+  }
 }
 
 // Funcție pentru a salva utilizatorii în fișier
 function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(users, null, 2));
+  try {
+    fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(users, null, 2));
+    return true;
+  } catch (error) {
+    console.error(`EROARE LA SALVAREA UTILIZATORILOR: ${error.message}`);
+    console.error(`Asigurați-vă că utilizatorul care rulează procesul are permisiuni de scriere pentru fișierul: ${USERS_FILE_PATH}`);
+    console.error(`Tip: Încercați să rulați 'chown <user>:<group> ${USERS_FILE_PATH}' sau 'chmod 664 ${USERS_FILE_PATH}'`);
+    return false;
+  }
 }
 
 // Funcție pentru a citi mașinile din fișier
 function getMachines() {
   if (!fs.existsSync(MACHINES_FILE_PATH)) {
     // Inițializăm cu un array gol dacă fișierul nu există
-    fs.writeFileSync(MACHINES_FILE_PATH, JSON.stringify([], null, 2));
+    try {
+      fs.writeFileSync(MACHINES_FILE_PATH, JSON.stringify([], null, 2));
+    } catch (error) {
+      console.error(`EROARE CRITICĂ: Nu se poate scrie în fișierul ${MACHINES_FILE_PATH}`);
+      console.error(`Mesaj eroare: ${error.message}`);
+      console.error(`Asigurați-vă că utilizatorul care rulează procesul are permisiuni de scriere pentru directorul: ${__dirname}`);
+    }
     return [];
   }
   
-  const machinesData = fs.readFileSync(MACHINES_FILE_PATH, 'utf8');
-  return JSON.parse(machinesData);
+  try {
+    const machinesData = fs.readFileSync(MACHINES_FILE_PATH, 'utf8');
+    return JSON.parse(machinesData);
+  } catch (error) {
+    console.error(`EROARE LA CITIREA MAȘINILOR: ${error.message}`);
+    return [];
+  }
 }
 
 // Funcție pentru a salva mașinile în fișier
 function saveMachines(machines) {
-  fs.writeFileSync(MACHINES_FILE_PATH, JSON.stringify(machines, null, 2));
+  try {
+    fs.writeFileSync(MACHINES_FILE_PATH, JSON.stringify(machines, null, 2));
+    return true;
+  } catch (error) {
+    console.error(`EROARE LA SALVAREA MAȘINILOR: ${error.message}`);
+    console.error(`Asigurați-vă că utilizatorul care rulează procesul are permisiuni de scriere pentru fișierul: ${MACHINES_FILE_PATH}`);
+    return false;
+  }
 }
 
 // Verifică autentificarea pentru rutele protejate
@@ -345,7 +385,14 @@ app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
   
   // Adăugăm utilizatorul în lista
   users.push(newUser);
-  saveUsers(users);
+  const saveSuccessful = saveUsers(users);
+  
+  if (!saveSuccessful) {
+    return res.status(500).json({
+      success: false,
+      message: 'Eroare la salvarea utilizatorului. Verificați permisiunile de fișier pe server.'
+    });
+  }
   
   res.json({
     success: true,
@@ -382,7 +429,14 @@ app.delete('/api/users/:id', authenticateToken, isAdmin, (req, res) => {
     });
   }
   
-  saveUsers(filteredUsers);
+  const saveSuccessful = saveUsers(filteredUsers);
+  
+  if (!saveSuccessful) {
+    return res.status(500).json({
+      success: false,
+      message: 'Eroare la ștergerea utilizatorului. Verificați permisiunile de fișier pe server.'
+    });
+  }
   
   res.json({
     success: true,
@@ -411,7 +465,14 @@ app.post('/api/users/:id/reset-password', authenticateToken, isAdmin, (req, res)
   users[userIndex].password = bcrypt.hashSync(temporaryPassword, 10);
   users[userIndex].requirePasswordChange = true;
   
-  saveUsers(users);
+  const saveSuccessful = saveUsers(users);
+  
+  if (!saveSuccessful) {
+    return res.status(500).json({
+      success: false,
+      message: 'Eroare la resetarea parolei. Verificați permisiunile de fișier pe server.'
+    });
+  }
   
   res.json({
     success: true,
@@ -448,7 +509,14 @@ app.post('/api/users/:id/change-password', authenticateToken, isAdmin, (req, res
   users[userIndex].password = bcrypt.hashSync(newPassword, 10);
   users[userIndex].requirePasswordChange = requirePasswordChange;
   
-  saveUsers(users);
+  const saveSuccessful = saveUsers(users);
+  
+  if (!saveSuccessful) {
+    return res.status(500).json({
+      success: false,
+      message: 'Eroare la schimbarea parolei. Verificați permisiunile de fișier pe server.'
+    });
+  }
   
   res.json({
     success: true,
@@ -489,7 +557,14 @@ app.put('/api/users/:id/role', authenticateToken, isAdmin, (req, res) => {
   // Actualizăm rolul utilizatorului
   users[userIndex].role = role;
   
-  saveUsers(users);
+  const saveSuccessful = saveUsers(users);
+  
+  if (!saveSuccessful) {
+    return res.status(500).json({
+      success: false,
+      message: 'Eroare la schimbarea rolului. Verificați permisiunile de fișier pe server.'
+    });
+  }
   
   res.json({
     success: true,
@@ -764,7 +839,14 @@ app.post('/api/machines', authenticateToken, (req, res) => {
     
     // Adăugăm mașina în listă
     machines.push(newMachine);
-    saveMachines(machines);
+    const saveSuccessful = saveMachines(machines);
+    
+    if (!saveSuccessful) {
+      return res.status(500).json({
+        success: false,
+        message: "Eroare la salvarea mașinii. Verificați permisiunile de fișier pe server."
+      });
+    }
     
     res.json({
       success: true,
@@ -840,7 +922,14 @@ app.put('/api/machines/:id', authenticateToken, (req, res) => {
     };
     
     machines[machineIndex] = updatedMachine;
-    saveMachines(machines);
+    const saveSuccessful = saveMachines(machines);
+    
+    if (!saveSuccessful) {
+      return res.status(500).json({
+        success: false,
+        message: "Eroare la actualizarea mașinii. Verificați permisiunile de fișier pe server."
+      });
+    }
     
     res.json({
       success: true,
@@ -883,7 +972,14 @@ app.delete('/api/machines/:id', authenticateToken, (req, res) => {
     
     // Ștergem mașina
     const updatedMachines = machines.filter(m => m.id !== id);
-    saveMachines(updatedMachines);
+    const saveSuccessful = saveMachines(updatedMachines);
+    
+    if (!saveSuccessful) {
+      return res.status(500).json({
+        success: false,
+        message: "Eroare la ștergerea mașinii. Verificați permisiunile de fișier pe server."
+      });
+    }
     
     res.json({
       success: true,
@@ -1136,6 +1232,29 @@ app.get('*', (req, res) => {
 
 // Pornirea serverului
 app.listen(PORT, () => {
-  console.log(`API Server pentru Optizone Fleet Manager rulează pe portul ${PORT}`);
-  console.log(`Mode: production`);
+  // Verificăm permisiunile la pornire pentru a avertiza utilizatorii timpuriu
+  try {
+    const usersStats = fs.existsSync(USERS_FILE_PATH) ? fs.statSync(USERS_FILE_PATH) : null;
+    const machinesStats = fs.existsSync(MACHINES_FILE_PATH) ? fs.statSync(MACHINES_FILE_PATH) : null;
+    
+    console.log(`API Server pentru Optizone Fleet Manager rulează pe portul ${PORT}`);
+    console.log(`Mode: production`);
+    
+    if (usersStats) {
+      const isWritable = (usersStats.mode & fs.constants.W_OK) === fs.constants.W_OK;
+      console.log(`Fișierul users.json: ${isWritable ? 'SCRIBIL' : 'NU ESTE SCRIBIL - VOR APĂREA ERORI'}`);
+    }
+    
+    if (machinesStats) {
+      const isWritable = (machinesStats.mode & fs.constants.W_OK) === fs.constants.W_OK;
+      console.log(`Fișierul machines.json: ${isWritable ? 'SCRIBIL' : 'NU ESTE SCRIBIL - VOR APĂREA ERORI'}`);
+    }
+    
+    const dirStats = fs.statSync(__dirname);
+    const isDirWritable = (dirStats.mode & fs.constants.W_OK) === fs.constants.W_OK;
+    console.log(`Directorul server: ${isDirWritable ? 'SCRIBIL' : 'NU ESTE SCRIBIL - VOR APĂREA ERORI'}`);
+    
+  } catch (error) {
+    console.error("Eroare la verificarea permisiunilor:", error.message);
+  }
 });

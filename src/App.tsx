@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import ChangePassword from "./pages/ChangePassword";
+import { toast } from "sonner";
 
 console.log("Componenta App se inițializează...");
 
@@ -18,7 +19,30 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      onError: (error) => {
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : 'A apărut o eroare de conexiune. Verificați conexiunea la server.';
+        
+        toast.error(errorMessage);
+        console.error('Query error:', error);
+      }
     },
+    mutations: {
+      onError: (error) => {
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : 'A apărut o eroare de conexiune. Verificați conexiunea la server.';
+        
+        if (errorMessage.includes('permisiuni') || errorMessage.includes('permission denied')) {
+          toast.error('Eroare de permisiuni pe server. Contactați administratorul sistemului.');
+        } else {
+          toast.error(errorMessage);
+        }
+        
+        console.error('Mutation error:', error);
+      }
+    }
   },
 });
 
