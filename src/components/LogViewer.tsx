@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import {
   PlayCircle,
   ArrowLeft
 } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/utils/dateUtils";
 import { Input } from "@/components/ui/input";
 import { sshService } from "@/services/sshService";
@@ -429,8 +430,25 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
     };
   }, [machine.id]);
 
+  // Updated function to sanitize and format log lines for better human readability
   const renderRawLogLine = (log: LogEntry, index: number) => {
-    const logText = log.originalLine || log.message;
+    // Get the log content, prioritizing the original line if available
+    let logText = log.originalLine || log.message;
+    
+    // Sanitize control characters and make logs more human-readable
+    // Replace common control characters and non-printable characters
+    logText = logText
+      // Replace ASCII control characters (0-31) except newlines and tabs
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      // Replace common terminal escape sequences
+      .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+      // Replace other common problematic sequences
+      .replace(/\x1b\][0-9];.*?\x07/g, '')
+      // Replace null characters
+      .replace(/\x00/g, '')
+      // Clean up consecutive spaces (more than 2) for better readability
+      .replace(/\s{3,}/g, '  ');
+    
     const textColor = getTextColor(logText);
     
     return (
@@ -438,10 +456,11 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
         key={index} 
         className={`mb-1 font-mono ${textColor}`}
         style={{ 
-          whiteSpace: 'pre', 
+          whiteSpace: 'pre-wrap', // Changed from 'pre' to 'pre-wrap' for better line wrapping
           fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
           fontSize: '14px',
-          lineHeight: '1.4'
+          lineHeight: '1.4',
+          wordBreak: 'break-word' // Added to prevent horizontal scrolling on long lines
         }}
       >
         {logText}
@@ -615,4 +634,3 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
 };
 
 export default LogViewer;
-
