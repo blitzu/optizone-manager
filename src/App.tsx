@@ -28,18 +28,18 @@ const App = () => {
   
   // Pregătim mesajele de log în afara returnului
   console.log("Randare QueryClientProvider");
+  console.log("Randare BrowserRouter");
   console.log("Randare AuthProvider");
   console.log("Randare TooltipProvider");
-  console.log("Randare BrowserRouter");
   console.log("Randare Routes");
   
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+      <BrowserRouter>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route 
@@ -52,9 +52,9 @@ const App = () => {
               />
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
+          </TooltipProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 };

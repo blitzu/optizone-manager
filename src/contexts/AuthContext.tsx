@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (requirePasswordChange && tempToken) {
           navigate(`/change-password?tempToken=${tempToken}`);
         } else {
-          navigate("/machines");
+          navigate("/");
         }
         
         return {
@@ -129,7 +129,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem("user");
     setIsAuthenticated(false);
     setCurrentUser(null);
-    navigate("/");
+    navigate("/login");
   };
   
   const changeTempPassword = async (username: string, tempToken: string, newPassword: string): Promise<boolean> => {
@@ -378,7 +378,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateUserRole = async (userId: string, role: UserRole): Promise<boolean> => {
     try {
-      // Don't allow modifying the superuser (ID 1)
       if (userId === "1") {
         toast({
           title: "Operațiune interzisă",
