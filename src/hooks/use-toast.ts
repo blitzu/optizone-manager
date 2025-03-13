@@ -127,6 +127,37 @@ function dispatch(action: Action) {
   })
 }
 
+function dismissToast(toastId: string) {
+  dispatch({ type: actionTypes.DISMISS_TOAST, toastId })
+}
+
+function removeToast(toastId: string) {
+  dispatch({ type: actionTypes.REMOVE_TOAST, toastId })
+}
+
+// Function to set up auto-dismiss timeout
+function setupDismissTimeout(toastId: string) {
+  if (toastTimeouts.has(toastId)) {
+    clearTimeout(toastTimeouts.get(toastId))
+  }
+  
+  const timeout = setTimeout(() => {
+    dismissToast(toastId)
+    
+    // Add a slight delay before removing from DOM
+    setTimeout(() => {
+      removeToast(toastId)
+    }, 300) // Animation duration
+  }, TOAST_REMOVE_DELAY)
+  
+  toastTimeouts.set(toastId, timeout)
+  
+  return () => {
+    clearTimeout(timeout)
+    toastTimeouts.delete(toastId)
+  }
+}
+
 type ToastCreationProps = Omit<ToasterToast, "id">
 
 function toast(props: ToastCreationProps) {
@@ -138,7 +169,10 @@ function toast(props: ToastCreationProps) {
       toast: { ...props, id },
     })
 
-  const dismiss = () => dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id })
+  const dismiss = () => {
+    dismissToast(id)
+    setTimeout(() => removeToast(id), 300) // Animation duration
+  }
 
   // Clear any existing timeout for this toast ID
   if (toastTimeouts.has(id)) {
@@ -150,6 +184,7 @@ function toast(props: ToastCreationProps) {
     type: actionTypes.ADD_TOAST,
     toast: {
       ...props,
+      id,
       open: true,
       onOpenChange: (open) => {
         if (!open) {
@@ -163,13 +198,8 @@ function toast(props: ToastCreationProps) {
     },
   })
 
-  // Set a timeout to auto-dismiss the toast
-  const timeout = setTimeout(() => {
-    dismiss()
-  }, TOAST_REMOVE_DELAY)
-  
-  // Store the timeout so it can be cleared if needed
-  toastTimeouts.set(id, timeout)
+  // Set up auto-dismiss timeout
+  setupDismissTimeout(id)
 
   return {
     id,
@@ -194,7 +224,12 @@ function useToast() {
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: actionTypes.DISMISS_TOAST, toastId }),
+    dismiss: (toastId?: string) => {
+      if (toastId) {
+        dismissToast(toastId)
+        setTimeout(() => removeToast(toastId), 300) // Animation duration
+      }
+    },
   }
 }
 
