@@ -113,7 +113,8 @@ const ChangePassword = () => {
                 placeholder="Nume utilizator"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                readOnly={!!username}
+                disabled={!!username} 
+                className={!!username ? "bg-gray-100" : ""}
                 required
               />
             </div>

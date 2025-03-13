@@ -19,32 +19,28 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      onSettled: (_, error) => {
-        if (error) {
-          const errorMessage = error instanceof Error 
-            ? error.message 
-            : 'A apărut o eroare de conexiune. Verificați conexiunea la server.';
-          
-          toast.error(errorMessage);
-          console.error('Query error:', error);
-        }
+      onError: (error) => {
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : 'A apărut o eroare de conexiune. Verificați conexiunea la server.';
+        
+        toast.error(errorMessage);
+        console.error('Query error:', error);
       }
     },
     mutations: {
-      onSettled: (_, error) => {
-        if (error) {
-          const errorMessage = error instanceof Error 
-            ? error.message 
-            : 'A apărut o eroare de conexiune. Verificați conexiunea la server.';
-          
-          if (errorMessage.includes('permisiuni') || errorMessage.includes('permission denied')) {
-            toast.error('Eroare de permisiuni pe server. Contactați administratorul sistemului.');
-          } else {
-            toast.error(errorMessage);
-          }
-          
-          console.error('Mutation error:', error);
+      onError: (error) => {
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : 'A apărut o eroare de conexiune. Verificați conexiunea la server.';
+        
+        if (errorMessage.includes('permisiuni') || errorMessage.includes('permission denied')) {
+          toast.error('Eroare de permisiuni pe server. Contactați administratorul sistemului.');
+        } else {
+          toast.error(errorMessage);
         }
+        
+        console.error('Mutation error:', error);
       }
     }
   },
