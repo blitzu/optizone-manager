@@ -37,81 +37,42 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const terminalInputRef = useRef<HTMLInputElement>(null);
   const terminalOutputRef = useRef<HTMLDivElement>(null);
 
-  // MobaXterm style color management
-  const getColorForComponent = (component: string): string => {
-    if (!component) return "text-gray-400";
-    
-    // Color mapping similar to MobaXterm
-    if (component.includes("DCT:VIST")) return "text-cyan-300";
-    if (component.includes("BP")) return "text-amber-400"; // yellow-orange
-    if (component.includes("MAIN")) return "text-green-400";
-    if (component.includes("MQ")) return "text-purple-400";
-    if (component.includes("LPR")) return "text-cyan-400";
-    if (component.includes("CAP")) return "text-sky-400";
-    if (component.includes("admin_pipeline")) return "text-pink-400";
-    if (component.includes("docker")) return "text-sky-500";
-    if (component.includes("systemd")) return "text-green-500";
-    if (component.includes("sh")) return "text-teal-400";
-    if (component.includes("TH_YF8S") || component.includes("TH_LPD_R")) return "text-fuchsia-400";
-    if (component.includes("EPM") || component.includes("SYSMON")) return "text-emerald-400";
-    if (component.includes("BC")) return "text-amber-500";
-    
-    // Default color for unknown components
-    return "text-gray-300";
+  // Set up color mappings to match MobaXterm's exact styling
+  const getColorForType = (type: string): string => {
+    if (type === "EE") return "text-red-500";
+    if (type === "MQ") return "text-purple-400";
+    if (type === "DE") return "text-amber-400";
+    if (type === "NO") return "text-sky-300";
+    if (type === "MAIN") return "text-green-400";
+    if (type === "WARNING") return "text-amber-400";
+    return "text-white";
+  };
+
+  // Custom color for specific log formats
+  const getColorForSpecialLine = (line: string): string | null => {
+    if (line.includes("[MAIN][WARNING]")) return "text-red-400";
+    if (line.includes("stop-resumes")) return "text-red-400";
+    return null;
   };
 
   // Get text color for log level
   const getLevelColor = (level: LogEntry['level']) => {
     switch (level) {
       case "error": return "text-red-500";
-      case "warning": return "text-yellow-400";
+      case "warning": return "text-amber-400";
       case "debug": return "text-blue-400";
       default: return "text-white";
     }
   };
 
-  // Get color for table cell value - MobaXterm-like
-  const getValueColor = (value: string) => {
-    if (value === "True") return "text-green-400";
-    if (value === "False") return "text-red-400";
+  // Get color for array values based on MobaXterm style
+  const getArrayValueColor = (value: string) => {
+    if (value === "'gema'") return "text-green-400";
     if (value === "None") return "text-gray-500";
-    if (value === "0") return "text-blue-300";
-    if (value.includes("/")) return "text-yellow-400"; // For fractions like 10/10
-    if (!isNaN(Number(value))) return "text-blue-400"; // For numbers
-    
-    // Detect hex color codes
-    if (value.match(/^#[0-9a-f]{6}$/i)) return "text-purple-400";
-    
-    // Colorize process info
-    if (value.match(/^\d+\s*$/)) return "text-cyan-400"; // PID numbers
-    
-    return "text-white"; // Default
-  };
-
-  // Function for auto-detecting special rows in log
-  const isTableHeader = (message: string): boolean => {
-    return message.includes("TRACK_ID") || 
-           message.includes("Status") || 
-           message.includes("Name") ||
-           (message.includes("--") && message.includes("--")) ||
-           message.match(/^##+$/) !== null; // Detect header separator lines
-  };
-
-  // Function for checking if a line is part of a table
-  const isTableRow = (message: string): boolean => {
-    // If message has multiple continuous spaces or tabs, it's likely a table
-    return message.match(/\s{2,}/) !== null || 
-           message.match(/\t/) !== null || 
-           message.includes("live") ||
-           message.match(/^\d+\s+[A-Za-z0-9-]+\s+/) !== null;
-  };
-
-  // Function to detect special formatting sections like ASCII art banners
-  const isSpecialFormatting = (message: string): boolean => {
-    return message.includes("####") || 
-           message.match(/===+/) !== null || 
-           message.includes("IMPORTANT") ||
-           message.match(/^#+\s.*\s+#+$/) !== null;
+    if (value.startsWith("'CVP-") || value.startsWith("'LPR-")) return "text-cyan-400";
+    if (value === "'VIEW_SCENE_01'") return "text-yellow-400";
+    if (value.includes("-vs'")) return "text-sky-300";
+    return "text-white";
   };
 
   const fetchLogData = async () => {
@@ -178,7 +139,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         
         const combined = [...prev, ...liveLogs];
         const uniqueLogs = Array.from(new Map(combined.map(log => 
-          [`${log.timestamp}-${log.level}-${log.message}`, log]
+          [`${log.timestamp}-${log.message}`, log]
         )).values());
         
         const result = uniqueLogs.slice(Math.max(0, uniqueLogs.length - 2000));
@@ -331,7 +292,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
 
   const downloadLogs = () => {
     const formattedLogs = logs.map(log => 
-      `[${formatDateTime(log.timestamp)}] [${log.level.toUpperCase()}] ${log.message}`
+      log.originalLine || `[${formatDateTime(log.timestamp)}] [${log.level.toUpperCase()}] ${log.message}`
     ).join('\n');
     
     const blob = new Blob([formattedLogs], { type: 'text/plain' });
@@ -389,104 +350,142 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     };
   }, [machine.id]);
 
-  // Function to render log line in MobaXterm style
-  const renderLogLine = (log: LogEntry, index: number) => {
-    const message = log.message;
-    const syslogIdentifier = log.syslogIdentifier || "system";
+  // This function parses MobaXterm style log lines
+  const parseMobaxtermLogLine = (logLine: string) => {
+    // Handle [EE] format
+    const eeRegex = /\[EE\]\[([^\]]+)\]\[([^\]]+)\]\[([^\]]+)\]\s+(\d+):\s+(.+)/;
+    const eeMatch = logLine.match(eeRegex);
     
-    // Handle special formatting cases
+    if (eeMatch) {
+      const [_, timestamp, type1, type2, pid, content] = eeMatch;
+      return { timestamp, type1, type2, pid, content };
+    }
     
-    // Case 1: MobaXterm EE logs with red color
-    if (log.originalLine && log.originalLine.startsWith('[EE]')) {
+    // Handle standard format with timestamp, level, component
+    const standardRegex = /\[([^\]]+)\]\s+\[([^\]]+)\]\s+\[([^\]]+)\]\s+(.+)/;
+    const standardMatch = logLine.match(standardRegex);
+    
+    if (standardMatch) {
+      const [_, timestamp, level, component, message] = standardMatch;
+      return { timestamp, level, component, message };
+    }
+    
+    return null;
+  };
+
+  // Function to render array format like in the screenshots, with colors
+  const renderArrayValues = (content: string) => {
+    // Match array format like: ['gema', 'CVP-12-1', 'VIEW_SCENE_01', 'CVP-12-1-vs']
+    if (content.startsWith('[') && content.endsWith(']')) {
+      try {
+        // Remove the outer brackets and split by commas
+        const innerContent = content.substring(1, content.length - 1);
+        const values = innerContent.split(',').map(v => v.trim());
+        
+        return (
+          <span className="flex items-center">
+            <span className="text-purple-300">[</span>
+            {values.map((value, i) => (
+              <span key={i}>
+                <span className={getArrayValueColor(value)}>{value}</span>
+                {i < values.length - 1 && <span className="text-gray-400">, </span>}
+              </span>
+            ))}
+            <span className="text-purple-300">]</span>
+          </span>
+        );
+      } catch (e) {
+        return <span>{content}</span>;
+      }
+    }
+    
+    return <span>{content}</span>;
+  };
+
+  // Function to render log line in MobaXterm format based on the original log line
+  const renderExactMobaxtermLogLine = (log: LogEntry, index: number) => {
+    // First check if we have the original line to render in exact format
+    if (log.originalLine) {
+      // Special case for EE logs with red color
+      if (log.originalLine.startsWith('[EE]')) {
+        // Extract parts with regex
+        const parts = log.originalLine.match(/\[EE\]\[([^\]]+)\]\[([^\]]+)\]\[([^\]]+)\]\s+(\d+):\s+(.+)/);
+        
+        if (parts) {
+          const [_, timestamp, type1, type2, pid, content] = parts;
+          
+          return (
+            <div key={index} className="mb-1 font-mono flex flex-wrap whitespace-nowrap">
+              <span className="text-red-500">[EE]</span>
+              <span className="text-gray-400">[{timestamp}]</span>
+              <span className={getColorForType(type1)}>[{type1}]</span>
+              <span className={getColorForType(type2)}>[{type2}]</span>
+              <span className="text-gray-500">{pid}: </span>
+              {renderArrayValues(content)}
+            </div>
+          );
+        }
+        
+        // If regex doesn't match, render the line in red
+        return (
+          <div key={index} className="mb-1 font-mono text-red-500">
+            {log.originalLine}
+          </div>
+        );
+      }
+      
+      // Special case for log with WARNING
+      const specialColor = getColorForSpecialLine(log.originalLine);
+      if (specialColor) {
+        return (
+          <div key={index} className={`mb-1 font-mono ${specialColor}`}>
+            {log.originalLine}
+          </div>
+        );
+      }
+      
+      // For standard format logs
+      if (log.originalLine.match(/\[[^\]]+\]\s+\[[^\]]+\]\s+\[[^\]]+\]/)) {
+        try {
+          // Extract components based on bracket pattern
+          const components = log.originalLine.match(/\[([^\]]+)\]/g);
+          if (components && components.length >= 3) {
+            const remainingParts = log.originalLine.split(components[2])[1].trim();
+            
+            return (
+              <div key={index} className="mb-1 font-mono flex flex-wrap whitespace-nowrap">
+                <span className="text-gray-400">{components[0]}</span>
+                <span className={`${getLevelColor(log.level)}`}>{components[1]}</span>
+                <span className="text-cyan-300">{components[2]}</span>
+                <span className="ml-1">{renderArrayValues(remainingParts)}</span>
+              </div>
+            );
+          }
+        } catch (e) {
+          console.error("Error parsing log line:", e);
+        }
+      }
+      
       return (
-        <div key={index} className="mb-1 font-mono text-red-500">
+        <div key={index} className="mb-1 font-mono text-white">
           {log.originalLine}
         </div>
       );
     }
     
-    // Case 2: ASCII banner formatting with different colors
-    if (isSpecialFormatting(message)) {
-      // Check if this is a section separator with hash marks
-      if (message.includes('####')) {
-        return (
-          <div key={index} className="mb-1 font-mono text-green-400">
-            {message}
-          </div>
-        );
-      }
-      
-      // Check if this is an IMPORTANT message
-      if (message.includes('IMPORTANT')) {
-        return (
-          <div key={index} className="mb-1 font-mono text-amber-400 font-bold">
-            {message}
-          </div>
-        );
-      }
-      
-      // Check if this is a section separator with equal signs
-      if (message.match(/===+/)) {
-        return (
-          <div key={index} className="mb-1 font-mono text-blue-400">
-            {message}
-          </div>
-        );
-      }
-    }
-    
-    // Case 3: Table headers
-    if (isTableHeader(message)) {
-      return (
-        <div key={index} className="mb-1 font-mono text-yellow-400 font-bold">
-          {message}
-        </div>
-      );
-    }
-    
-    // Case 4: Table rows with column alignment
-    if (isTableRow(message)) {
-      try {
-        // Split by multiple spaces or tabs
-        const parts = message.split(/\s{2,}|\t/).filter(part => part.trim() !== '');
-        
-        if (parts.length > 1) {
-          return (
-            <div key={index} className="mb-1 font-mono flex flex-wrap">
-              {parts.map((part, i) => (
-                <span 
-                  key={i} 
-                  className={`${getValueColor(part)} mr-3`}
-                  style={{ minWidth: '6ch' }}
-                >
-                  {part}
-                </span>
-              ))}
-            </div>
-          );
-        }
-      } catch (e) {
-        console.error("Error parsing table row:", e);
-      }
-    }
-    
-    // Default MobaXterm-style formatting for regular logs
+    // Default rendering for logs without originalLine
     return (
       <div key={index} className={`mb-1 font-mono ${getLevelColor(log.level)}`}>
-        {log.timestamp ? (
-          <>
-            <span className="text-gray-400">
-              [{formatDateTime(log.timestamp)}]
-            </span>{' '}
-          </>
-        ) : null}
+        <span className="text-gray-400">
+          [{formatDateTime(log.timestamp)}]
+        </span>{' '}
         <span className={`font-semibold ${getLevelColor(log.level)}`}>
           [{log.level.toUpperCase()}]
         </span>{' '}
-        <span className={`${getColorForComponent(syslogIdentifier)}`}>
-          [{syslogIdentifier}]
+        <span className="text-cyan-300">
+          [{log.syslogIdentifier || "system"}]
         </span>{' '}
-        <span>{message}</span>
+        <span>{log.message}</span>
       </div>
     );
   };
@@ -554,7 +553,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                 </div>
               ) : (
                 <div>
-                  {logs.map((log, index) => renderLogLine(log, index))}
+                  {logs.map((log, index) => renderExactMobaxtermLogLine(log, index))}
                 </div>
               )}
             </div>

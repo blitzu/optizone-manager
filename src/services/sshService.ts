@@ -41,10 +41,15 @@ export const sshService = {
    */
   executeCommand: async (request: SSHCommandRequest): Promise<{ success: boolean; output: string }> => {
     try {
-      // Nu mai modificăm comanda aici, trimitem datele așa cum sunt
-      // și lăsăm server-ul să gestioneze cazul cu sudo
-      const response = await axios.post(`${API_URL}/execute-command`, request);
+      // Verificăm dacă comanda este sudo și adăugăm parola
+      let modifiedRequest = { ...request };
       
+      if (request.command.startsWith('sudo ') && request.sshPassword) {
+        // Trimitem comanda specială pentru sudo cu parola inclusă
+        modifiedRequest.command = `echo "${request.sshPassword}" | sudo -S ${request.command.substring(5)}`;
+      }
+      
+      const response = await axios.post(`${API_URL}/execute-command`, modifiedRequest);
       return response.data;
     } catch (error) {
       console.error('Eroare la executarea comenzii:', error);
