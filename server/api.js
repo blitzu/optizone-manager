@@ -1100,5 +1100,4 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`API Server pentru Optizone Fleet Manager rulează pe portul ${PORT}`);
   console.log(`Mode: production`);
-
-
+});
