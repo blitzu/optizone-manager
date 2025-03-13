@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from "react";
 import axios from "axios";
 import { toast } from "@/hooks/use-toast";
@@ -127,6 +128,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
         
+        // Check if password change is required before setting authentication
+        const { requirePasswordChange, tempToken } = response.data;
+        
+        if (requirePasswordChange && tempToken) {
+          console.log("Password change required. Redirecting to change password page.");
+          navigate(`/change-password?tempToken=${tempToken}&username=${username}`);
+          return {
+            success: true,
+            requirePasswordChange: true,
+            tempToken: tempToken,
+            user: userData,
+            token: response.data.token
+          };
+        }
+        
+        // If no password change required, set authentication
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(userData));
         
@@ -135,16 +152,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsAuthenticated(true);
         setCurrentUser(userData);
         
-        const { requirePasswordChange, tempToken } = response.data;
-        
-        if (requirePasswordChange && tempToken) {
-          navigate(`/change-password?tempToken=${tempToken}&username=${username}`);
-        }
-        
         return {
           success: true,
-          requirePasswordChange: response.data.requirePasswordChange,
-          tempToken: response.data.tempToken,
           user: userData,
           token: response.data.token
         };

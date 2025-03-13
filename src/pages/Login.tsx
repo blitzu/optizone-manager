@@ -39,31 +39,37 @@ const Login = () => {
       console.log("Login result:", result);
       
       if (result.success) {
-        toast({
-          title: "Autentificare reușită",
-          description: `Bine ai venit, ${result.user?.username || username}!`
-        });
-        
-        // Show lastLogin info in toast if available
-        if (result.user?.lastLogin) {
-          console.log("LastLogin data:", result.user.lastLogin);
-          // Format date with seconds using the formatDateTime utility
-          const lastLoginDate = formatDateTime(result.user.lastLogin.date);
-          toast({
-            title: "Informații de autentificare",
-            description: `Ultima autentificare: ${lastLoginDate}`,
-          });
+        // Don't show welcome toast or navigate if password change is required
+        if (result.requirePasswordChange) {
+          console.log("Password change required - will redirect from login function");
+          // Navigation is handled in the login function
         } else {
-          console.log("No lastLogin data available in user object");
-          
           toast({
-            title: "Informații de autentificare",
-            description: "Aceasta este prima dvs. autentificare sau nu există informații anterioare."
+            title: "Autentificare reușită",
+            description: `Bine ai venit, ${result.user?.username || username}!`
           });
+          
+          // Show lastLogin info in toast if available
+          if (result.user?.lastLogin) {
+            console.log("LastLogin data:", result.user.lastLogin);
+            // Format date with seconds using the formatDateTime utility
+            const lastLoginDate = formatDateTime(result.user.lastLogin.date);
+            toast({
+              title: "Informații de autentificare",
+              description: `Ultima autentificare: ${lastLoginDate}`,
+            });
+          } else {
+            console.log("No lastLogin data available in user object");
+            
+            toast({
+              title: "Informații de autentificare",
+              description: "Aceasta este prima dvs. autentificare sau nu există informații anterioare."
+            });
+          }
+          
+          // Only navigate if password change is not required
+          navigate("/");
         }
-        
-        // Immediately navigate to home
-        navigate("/");
       } else {
         // Error message is shown by the login function via toast
         console.error(result.message);
