@@ -175,6 +175,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const initializeUserStatus = async (): Promise<boolean> => {
     try {
+      console.log("Initializing user statuses...");
       const response = await axios.post("/api/initialize-user-status", {}, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -182,14 +183,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
       
       if (response.data.success) {
-        console.log("User statuses initialized successfully");
+        console.log("User statuses initialized successfully:", response.data);
         return true;
       } else {
         console.error("Failed to initialize user statuses:", response.data.message);
         return false;
       }
     } catch (error: any) {
-      console.error("Error initializing user statuses:", error);
+      console.error("Error initializing user statuses:", error.message);
       return false;
     }
   };

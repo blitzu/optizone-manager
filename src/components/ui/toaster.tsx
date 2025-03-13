@@ -8,9 +8,17 @@ import {
   ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast"
+import { useEffect } from "react"
 
 export function Toaster() {
-  const { toasts } = useToast()
+  const { toasts, dismiss } = useToast()
+
+  // Clean up toasts when component unmounts
+  useEffect(() => {
+    return () => {
+      dismiss()
+    }
+  }, [dismiss])
 
   return (
     <ToastProvider>
@@ -24,7 +32,7 @@ export function Toaster() {
               )}
             </div>
             {action}
-            <ToastClose />
+            <ToastClose onClick={() => dismiss(id)} />
           </Toast>
         )
       })}

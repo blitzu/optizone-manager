@@ -140,6 +140,12 @@ function toast(props: ToastCreationProps) {
 
   const dismiss = () => dismissToast(id)
 
+  // Clear any existing timeout for this toast id to prevent duplicates
+  if (toastTimeouts.has(id)) {
+    clearTimeout(toastTimeouts.get(id))
+    toastTimeouts.delete(id)
+  }
+
   dispatch({
     type: actionTypes.ADD_TOAST,
     toast: {
@@ -205,6 +211,9 @@ function useToast() {
     dismiss: (toastId?: string) => {
       if (toastId) {
         dismissToast(toastId)
+      } else {
+        // Dismiss all toasts if no id is provided
+        state.toasts.forEach((t) => dismissToast(t.id))
       }
     },
   }
