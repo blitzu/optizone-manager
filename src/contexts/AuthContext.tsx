@@ -143,7 +143,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem("user", JSON.stringify(response.data.user));
         setIsAuthenticated(true);
         setCurrentUser(response.data.user);
-        navigate("/machines");
+        navigate("/");
         toast({
           title: "Succes",
           description: "Parola a fost schimbată cu succes!",

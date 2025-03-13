@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import ChangePassword from "./pages/ChangePassword";
 
 console.log("Componenta App se inițializează...");
 
@@ -26,7 +26,6 @@ console.log("QueryClient inițializat");
 const App = () => {
   console.log("Randare App...");
   
-  // Pregătim mesajele de log în afara returnului
   console.log("Randare QueryClientProvider");
   console.log("Randare BrowserRouter");
   console.log("Randare AuthProvider");
@@ -42,6 +41,7 @@ const App = () => {
             <Sonner />
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/change-password" element={<ChangePassword />} />
               <Route 
                 path="/" 
                 element={
