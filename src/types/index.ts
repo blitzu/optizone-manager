@@ -5,7 +5,7 @@ export interface User {
   id: string;
   username: string;
   role: UserRole;
-  active?: boolean;
+  active: boolean;
   lastLogin?: {
     date: string;
     ipAddress: string;

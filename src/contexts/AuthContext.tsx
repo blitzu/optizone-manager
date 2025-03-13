@@ -26,6 +26,7 @@ interface AuthContextType {
   resetUserPassword: (userId: string) => Promise<string | null>;
   changeUserPassword: (userId: string, newPassword: string, requirePasswordChange?: boolean) => Promise<boolean>;
   updateUserRole: (userId: string, role: UserRole) => Promise<boolean>;
+  initializeUserStatus: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -43,6 +44,7 @@ const AuthContext = createContext<AuthContextType>({
   resetUserPassword: async () => null,
   changeUserPassword: async () => false,
   updateUserRole: async () => false,
+  initializeUserStatus: async () => false,
 });
 
 interface AuthProviderProps {
@@ -73,6 +75,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && currentUser?.role === 'admin') {
+      initializeUserStatus();
+    }
+  }, [isAuthenticated, currentUser]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -113,6 +121,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (userData) {
           console.log("Last login information:", userData.lastLogin);
+          
+          if (userData.active === undefined) {
+            userData.active = true;
+          }
         }
         
         localStorage.setItem("token", response.data.token);
@@ -158,6 +170,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         success: false,
         message: error.response?.data?.message || "Nume de utilizator sau parolă incorecte"
       };
+    }
+  };
+
+  const initializeUserStatus = async (): Promise<boolean> => {
+    try {
+      const response = await axios.post("/api/initialize-user-status", {}, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      
+      if (response.data.success) {
+        console.log("User statuses initialized successfully");
+        return true;
+      } else {
+        console.error("Failed to initialize user statuses:", response.data.message);
+        return false;
+      }
+    } catch (error: any) {
+      console.error("Error initializing user statuses:", error);
+      return false;
     }
   };
 
@@ -305,6 +338,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               ipAddress: user.lastLoginIp
             };
             console.log(`Reconstructed lastLogin for ${user.username}:`, user.lastLogin);
+          }
+          
+          if (user.active === undefined) {
+            user.active = true;
           }
           
           return user;
@@ -588,6 +625,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         resetUserPassword,
         changeUserPassword,
         updateUserRole,
+        initializeUserStatus,
       }}
     >
       {children}
