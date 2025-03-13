@@ -1,7 +1,7 @@
-
 import axios from 'axios';
 import { Machine, LogEntry, LogRequest, SSHCommandRequest } from '@/types';
 import { appConfig } from '@/config/appConfig';
+import { toast } from '@/hooks/use-toast';
 
 // Folosim URL-ul API din configurație
 const API_URL = appConfig.apiUrl;
@@ -28,6 +28,11 @@ export const sshService = {
       return response.data;
     } catch (error) {
       console.error('Eroare la extragerea log-urilor:', error);
+      toast({
+        title: "Eroare",
+        description: "Nu am putut obține log-urile. Verificați conexiunea SSH.",
+        variant: "destructive"
+      });
       throw error;
     }
   },
@@ -56,6 +61,11 @@ export const sshService = {
       return response.data.rawLogs;
     } catch (error) {
       console.error('Eroare la descărcarea log-urilor brute:', error);
+      toast({
+        title: "Eroare",
+        description: "Nu s-au putut descărca log-urile. Verificați conexiunea SSH.",
+        variant: "destructive"
+      });
       throw error;
     }
   },

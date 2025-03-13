@@ -77,8 +77,7 @@ const reducer = (state: State, action: Action): State => {
     case actionTypes.DISMISS_TOAST: {
       const { toastId } = action
 
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
+      // Clear timeout when dismissing toast
       if (toastId) {
         if (toastTimeouts.has(toastId)) {
           clearTimeout(toastTimeouts.get(toastId))
@@ -141,6 +140,12 @@ function toast(props: ToastCreationProps) {
 
   const dismiss = () => dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id })
 
+  // Clear any existing timeout for this toast ID
+  if (toastTimeouts.has(id)) {
+    clearTimeout(toastTimeouts.get(id))
+    toastTimeouts.delete(id)
+  }
+
   dispatch({
     type: actionTypes.ADD_TOAST,
     toast: {
@@ -150,7 +155,10 @@ function toast(props: ToastCreationProps) {
         if (!open) {
           dismiss()
         }
-        props.onOpenChange?.(open)
+        // Call the original onOpenChange if provided
+        if (props.onOpenChange) {
+          props.onOpenChange(open)
+        }
       },
     },
   })
