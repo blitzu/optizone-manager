@@ -135,29 +135,6 @@ function removeToast(toastId: string) {
   dispatch({ type: actionTypes.REMOVE_TOAST, toastId })
 }
 
-// Function to set up auto-dismiss timeout
-function setupDismissTimeout(toastId: string) {
-  if (toastTimeouts.has(toastId)) {
-    clearTimeout(toastTimeouts.get(toastId))
-  }
-  
-  const timeout = setTimeout(() => {
-    dismissToast(toastId)
-    
-    // Add a slight delay before removing from DOM
-    setTimeout(() => {
-      removeToast(toastId)
-    }, 300) // Animation duration
-  }, TOAST_REMOVE_DELAY)
-  
-  toastTimeouts.set(toastId, timeout)
-  
-  return () => {
-    clearTimeout(timeout)
-    toastTimeouts.delete(toastId)
-  }
-}
-
 type ToastCreationProps = Omit<ToasterToast, "id">
 
 function toast(props: ToastCreationProps) {
@@ -171,15 +148,11 @@ function toast(props: ToastCreationProps) {
 
   const dismiss = () => {
     dismissToast(id)
-    setTimeout(() => removeToast(id), 300) // Animation duration
+    // Remove toast after animation
+    setTimeout(() => removeToast(id), 300)
   }
 
-  // Clear any existing timeout for this toast ID
-  if (toastTimeouts.has(id)) {
-    clearTimeout(toastTimeouts.get(id))
-    toastTimeouts.delete(id)
-  }
-
+  // Dispatch the ADD_TOAST action with the onOpenChange callback that handles dismissal
   dispatch({
     type: actionTypes.ADD_TOAST,
     toast: {
@@ -190,15 +163,21 @@ function toast(props: ToastCreationProps) {
           dismiss()
         }
         // Call the original onOpenChange if provided
-        if (props.onOpenChange) {
-          props.onOpenChange(open)
-        }
+        props.onOpenChange?.(open)
       },
     },
   })
 
   // Set up auto-dismiss timeout
-  setupDismissTimeout(id)
+  const timeoutId = setTimeout(() => {
+    dismissToast(id)
+    // Add a slight delay before removing from DOM
+    setTimeout(() => {
+      removeToast(id)
+    }, 300) // Animation duration
+  }, TOAST_REMOVE_DELAY)
+  
+  toastTimeouts.set(id, timeoutId)
 
   return {
     id,
@@ -217,8 +196,14 @@ function useToast() {
       if (index > -1) {
         listeners.splice(index, 1)
       }
+      
+      // Clean up any remaining timeouts when component unmounts
+      for (const [id, timeout] of toastTimeouts.entries()) {
+        clearTimeout(timeout)
+        toastTimeouts.delete(id)
+      }
     }
-  }, [state])
+  }, [])
 
   return {
     ...state,
@@ -226,7 +211,8 @@ function useToast() {
     dismiss: (toastId?: string) => {
       if (toastId) {
         dismissToast(toastId)
-        setTimeout(() => removeToast(toastId), 300) // Animation duration
+        // Remove toast after animation
+        setTimeout(() => removeToast(toastId), 300)
       }
     },
   }
