@@ -4,13 +4,14 @@ import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Download, Terminal, Calendar as CalendarIcon } from "lucide-react";
+import { AlertCircle, Download, Terminal, Calendar as CalendarIcon, ArrowDown } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatDateTime } from "@/utils/dateUtils";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { sshService } from "@/services/sshService";
 
 interface LogViewerProps {
@@ -24,7 +25,9 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const [startDateTime, setStartDateTime] = useState<Date>();
   const [endDateTime, setEndDateTime] = useState<Date>();
   const [applicationName, setApplicationName] = useState<string>("aixp_ee");
+  const [autoScroll, setAutoScroll] = useState(true);
   const liveIntervalRef = useRef<number>();
+  const logContainerRef = useRef<HTMLDivElement>(null);
 
   const getLevelColor = (level: LogEntry['level']) => {
     switch (level) {
@@ -34,6 +37,27 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       case "debug": return "text-purple-500";
       default: return "";
     }
+  };
+
+  const getComponentColor = (identifier: string | undefined) => {
+    if (!identifier) return "";
+    
+    // Putem defini culori diferite pentru diferite componente din sistem
+    const componentColors: Record<string, string> = {
+      "MAIN": "text-green-400",
+      "BP": "text-yellow-400",
+      "MQ": "text-cyan-400",
+      "sh": "text-pink-400"
+    };
+    
+    // Verificăm dacă identificatorul începe cu una dintre cheile din mapare
+    for (const [key, color] of Object.entries(componentColors)) {
+      if (identifier.startsWith(key)) {
+        return color;
+      }
+    }
+    
+    return "text-purple-400";
   };
 
   const fetchLogData = async () => {
@@ -52,6 +76,11 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       
       const logData = await sshService.fetchLogs(logRequest);
       setLogs(logData);
+      
+      // Activează autoscroll după încărcarea datelor
+      if (autoScroll) {
+        setTimeout(scrollToBottom, 100);
+      }
     } catch (error) {
       console.error('Eroare la obținerea log-urilor:', error);
       toast({
@@ -67,6 +96,9 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const startLiveMode = () => {
     setLiveMode(true);
     fetchLiveData();
+    
+    // Activează autoscroll automat în modul live
+    setAutoScroll(true);
     
     // Actualizăm log-urile la fiecare 3 secunde în mod live
     liveIntervalRef.current = window.setInterval(fetchLiveData, 3000);
@@ -94,7 +126,15 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         const uniqueLogs = Array.from(new Map(combined.map(log => 
           [`${log.timestamp}-${log.level}-${log.message}`, log]
         )).values());
-        return uniqueLogs.slice(Math.max(0, uniqueLogs.length - 2000));
+        
+        const result = uniqueLogs.slice(Math.max(0, uniqueLogs.length - 2000));
+        
+        // Activează autoscroll pentru noile log-uri dacă este activat
+        if (autoScroll) {
+          setTimeout(scrollToBottom, 100);
+        }
+        
+        return result;
       });
     } catch (error) {
       console.error('Eroare la obținerea log-urilor live:', error);
@@ -139,6 +179,28 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     });
   };
 
+  // Funcție pentru a derula automat la ultima intrare din log
+  const scrollToBottom = () => {
+    if (logContainerRef.current) {
+      const container = logContainerRef.current;
+      container.scrollTop = container.scrollHeight;
+    }
+  };
+
+  // Detectarea schimbării scroll-ului manual de către utilizator
+  const handleScroll = () => {
+    if (!logContainerRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
+    
+    // Actualizează starea autoScroll doar dacă utilizatorul a derulat manual
+    // și suntem aproape de sfârșitul containerului
+    if (isNearBottom !== autoScroll) {
+      setAutoScroll(isNearBottom);
+    }
+  };
+
   useEffect(() => {
     // Oprim modul live și obținem log-uri noi atunci când se schimbă mașina selectată
     stopLiveMode();
@@ -153,6 +215,31 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const formatDateTimeDisplay = (date: Date | undefined) => {
     if (!date) return "";
     return format(date, "dd.MM.yyyy HH:mm");
+  };
+
+  // Formatarea stilizată a liniilor de log pentru a imita exemplul din imagine
+  const renderLogLine = (log: LogEntry, index: number) => {
+    // Parsează syslogIdentifier pentru a extrage posibil componentele
+    let component = log.syslogIdentifier || "system";
+    let message = log.message;
+    
+    // Verifică dacă mesajul conține deja componenta între paranteze pătrate
+    const bracketMatch = message.match(/^\[(.*?)\](.*)/);
+    if (bracketMatch) {
+      component = bracketMatch[1];
+      message = bracketMatch[2].trim();
+    }
+    
+    return (
+      <div key={index} className={`mb-1 font-mono ${getLevelColor(log.level)}`}>
+        <span className="text-gray-400">
+          [{formatDateTime(log.timestamp)}]
+        </span>{' '}
+        <span className="font-semibold">[{log.level.toUpperCase()}]</span>{' '}
+        <span className={getComponentColor(component)}>[{component}]</span>{' '}
+        {message}
+      </div>
+    );
   };
 
   return (
@@ -187,30 +274,42 @@ const LogViewer = ({ machine }: LogViewerProps) => {
           </TabsList>
           
           <TabsContent value="view">
-            <div className="border rounded-md h-[50vh] overflow-auto bg-black text-white p-4 font-mono text-sm">
-              {loading ? (
-                <div className="flex justify-center items-center h-full">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                </div>
-              ) : logs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                  <Terminal className="h-12 w-12 mb-2" />
-                  <p>Nu există log-uri disponibile</p>
-                  <p className="text-xs mt-2">Începeți modul live sau filtrați după dată pentru a vedea log-uri</p>
-                </div>
-              ) : (
-                <div>
-                  {logs.map((log, index) => (
-                    <div key={index} className={`mb-1 ${getLevelColor(log.level)}`}>
-                      <span className="text-gray-400">
-                        [{formatDateTime(log.timestamp)}]
-                      </span>{' '}
-                      <span className="font-semibold">[{log.level.toUpperCase()}]</span>{' '}
-                      {log.syslogIdentifier && <span className="text-purple-400">[{log.syslogIdentifier}]</span>}{' '}
-                      {log.message}
-                    </div>
-                  ))}
-                </div>
+            <div className="relative">
+              <div 
+                ref={logContainerRef}
+                onScroll={handleScroll}
+                className="border rounded-md h-[50vh] overflow-auto bg-black text-white p-4 font-mono text-sm"
+              >
+                {loading ? (
+                  <div className="flex justify-center items-center h-full">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  </div>
+                ) : logs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                    <Terminal className="h-12 w-12 mb-2" />
+                    <p>Nu există log-uri disponibile</p>
+                    <p className="text-xs mt-2">Începeți modul live sau filtrați după dată pentru a vedea log-uri</p>
+                  </div>
+                ) : (
+                  <div>
+                    {logs.map((log, index) => renderLogLine(log, index))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Buton pentru auto-scroll */}
+              {!autoScroll && logs.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute bottom-4 right-4 bg-secondary text-primary z-10"
+                  onClick={() => {
+                    setAutoScroll(true);
+                    scrollToBottom();
+                  }}
+                >
+                  <ArrowDown className="h-4 w-4" />
+                </Button>
               )}
             </div>
           </TabsContent>
