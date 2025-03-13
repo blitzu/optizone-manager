@@ -33,3 +33,8 @@ export interface AuthState {
   isAuthenticated: boolean;
   currentUser: User | null;
 }
+
+export interface SSHConnectionResult {
+  success: boolean;
+  message: string;
+}

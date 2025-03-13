@@ -1,56 +1,18 @@
-
 import { useState, useEffect, useRef } from "react";
-import { Machine, LogEntry } from "@/types";
+import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Download, Terminal, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { formatDateTime, formatDateForAPI } from "@/utils/dateUtils";
+import { formatDateTime } from "@/utils/dateUtils";
 import { Input } from "@/components/ui/input";
 
 // Date picker component from shadcn
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-
-// Funcție pentru simularea obținerii de log-uri (în aplicația reală, aceasta ar face un apel la un backend)
-const fetchLogs = (machine: Machine, startDate?: Date, endDate?: Date): Promise<LogEntry[]> => {
-  // Simulăm un răspuns de la server
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Generăm log-uri aleatorii pentru simulare
-      const levels: LogEntry['level'][] = ['info', 'warning', 'error', 'debug'];
-      const logs: LogEntry[] = [];
-      
-      const totalLogs = Math.floor(Math.random() * 50) + 20;
-      
-      for (let i = 0; i < totalLogs; i++) {
-        const date = startDate && endDate 
-          ? new Date(startDate.getTime() + Math.random() * (endDate.getTime() - startDate.getTime()))
-          : new Date(Date.now() - Math.random() * 86400000);
-          
-        logs.push({
-          timestamp: date.toISOString(),
-          level: levels[Math.floor(Math.random() * levels.length)],
-          message: `Process: aixp_ee [${Math.floor(Math.random() * 10000)}]: ${
-            Math.random() > 0.5 
-              ? "Starting background task" 
-              : Math.random() > 0.5 
-                ? "Connection established" 
-                : "Service operation completed"
-          } (host=${machine.hostname})`
-        });
-      }
-      
-      // Sortăm log-urile după timestamp
-      logs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-      
-      resolve(logs);
-    }, 500);
-  });
-};
+import { sshService } from "@/services/sshService";
 
 interface LogViewerProps {
   machine: Machine;
@@ -77,9 +39,17 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const fetchLogData = async () => {
     setLoading(true);
     try {
-      const logData = await fetchLogs(machine, startDateTime, endDateTime);
+      const logRequest: LogRequest = {
+        machineId: machine.id,
+        liveMode: false,
+        startDate: startDateTime?.toISOString(),
+        endDate: endDateTime?.toISOString()
+      };
+      
+      const logData = await sshService.fetchLogs(logRequest);
       setLogs(logData);
     } catch (error) {
+      console.error('Eroare la obținerea log-urilor:', error);
       toast({
         title: "Eroare",
         description: "Nu am putut obține log-urile. Verificați conexiunea SSH.",
@@ -92,18 +62,32 @@ const LogViewer = ({ machine }: LogViewerProps) => {
 
   const startLiveMode = () => {
     setLiveMode(true);
-    fetchLogData();
+    fetchLiveData();
     
-    // Simulăm actualizarea log-urilor la fiecare 3 secunde în mod live
-    liveIntervalRef.current = window.setInterval(() => {
-      fetchLogs(machine).then(newLogs => {
-        setLogs(prev => {
-          const combined = [...prev, ...newLogs.slice(0, 5)];
-          // Păstrăm doar ultimele 1000 de log-uri pentru a nu supraîncărca memoria
-          return combined.slice(Math.max(0, combined.length - 1000));
-        });
+    // Actualizăm log-urile la fiecare 3 secunde în mod live
+    liveIntervalRef.current = window.setInterval(fetchLiveData, 3000);
+  };
+
+  const fetchLiveData = async () => {
+    try {
+      const logRequest: LogRequest = {
+        machineId: machine.id,
+        liveMode: true
+      };
+      
+      const liveLogs = await sshService.fetchLogs(logRequest);
+      setLogs(prev => {
+        const combined = [...prev, ...liveLogs];
+        // Eliminăm duplicatele și păstrăm doar ultimele 1000 de log-uri
+        const uniqueLogs = Array.from(new Map(combined.map(log => 
+          [`${log.timestamp}-${log.level}-${log.message}`, log]
+        )).values());
+        return uniqueLogs.slice(Math.max(0, uniqueLogs.length - 1000));
       });
-    }, 3000);
+    } catch (error) {
+      console.error('Eroare la obținerea log-urilor live:', error);
+      // Nu afișăm toast pentru a nu deranja utilizatorul la fiecare eroare în modul live
+    }
   };
 
   const stopLiveMode = () => {

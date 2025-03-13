@@ -9,6 +9,8 @@ import UserSettings from "@/components/UserSettings";
 import UserManagement from "@/components/UserManagement";
 import { Machine } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { sshService } from "@/services/sshService";
+import { toast } from "@/components/ui/use-toast";
 
 const Index = () => {
   const { currentUser, logout } = useAuth();
@@ -44,6 +46,36 @@ const Index = () => {
   const saveMachines = (updatedMachines: Machine[]) => {
     setMachines(updatedMachines);
     localStorage.setItem("optizone-machines", JSON.stringify(updatedMachines));
+  };
+
+  const testSshConnection = async (machine: Machine) => {
+    try {
+      toast({
+        title: "Se testează conexiunea SSH...",
+        description: `Se încearcă conectarea la ${machine.hostname} (${machine.ip})`,
+      });
+
+      const result = await sshService.testConnection(machine);
+      
+      if (result.success) {
+        toast({
+          title: "Conexiune reușită",
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: "Conexiune eșuată",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Eroare",
+        description: "Nu s-a putut testa conexiunea SSH. Verificați configurarea serverului.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -90,7 +122,17 @@ const Index = () => {
         
         <TabsContent value="logs">
           {selectedMachine ? (
-            <LogViewer machine={selectedMachine} />
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button 
+                  variant="outline"
+                  onClick={() => testSshConnection(selectedMachine)}
+                >
+                  Testează conexiunea SSH
+                </Button>
+              </div>
+              <LogViewer machine={selectedMachine} />
+            </div>
           ) : (
             <div className="p-8 text-center">
               <h3 className="text-lg font-medium mb-2">Selectați un PC pentru a vizualiza logurile</h3>
