@@ -31,9 +31,12 @@ const MACHINES_FILE_PATH = path.join(__dirname, 'machines.json');
 app.use(cors());
 app.use(express.json());
 
-// Servim fișierele statice ale aplicației în producție
+// Servim fișierele statice ale aplicației
 if (process.env.NODE_ENV === 'production') {
+  console.log('Serving static files from:', path.join(__dirname, '../dist'));
   app.use(express.static(path.join(__dirname, '../dist')));
+} else {
+  console.log('Running in development mode, static files will be served by Vite');
 }
 
 // Funcție pentru a citi utilizatorii din fișier
@@ -1086,13 +1089,18 @@ function mapLogLevel(level) {
 }
 
 // În producție, servim aplicația React pentru orice alte rute
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
+// Trebuie să fie ultimul middleware!
+app.get('*', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`Serving index.html for path: ${req.path}`);
     res.sendFile(path.join(__dirname, '../dist/index.html'));
-  });
-}
+  } else {
+    res.status(404).json({ error: 'Not Found - Development Mode' });
+  }
+});
 
 // Pornirea serverului
 app.listen(PORT, () => {
   console.log(`API Server pentru Optizone Fleet Manager rulează pe portul ${PORT}`);
+  console.log(`Mode: ${process.env.NODE_ENV || 'development'}`);
 });
