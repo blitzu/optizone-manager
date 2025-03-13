@@ -1,12 +1,50 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import MachineManager from "@/components/MachineManager";
+import LogViewer from "@/components/LogViewer";
+import { Machine } from "@/types";
 
 const Index = () => {
+  const [machines, setMachines] = useState<Machine[]>(() => {
+    const saved = localStorage.getItem("ubuntu-machines");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
+
+  const saveMachines = (updatedMachines: Machine[]) => {
+    setMachines(updatedMachines);
+    localStorage.setItem("ubuntu-machines", JSON.stringify(updatedMachines));
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="container mx-auto py-6">
+      <h1 className="text-3xl font-bold mb-6">Ubuntu Fleet Manager</h1>
+      
+      <Tabs defaultValue="machines" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="machines">Gestiune PC-uri</TabsTrigger>
+          <TabsTrigger value="logs" disabled={!selectedMachine}>
+            Vizualizare Logs
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="machines">
+          <MachineManager 
+            machines={machines} 
+            saveMachines={saveMachines}
+            selectedMachine={selectedMachine}
+            setSelectedMachine={setSelectedMachine}
+          />
+        </TabsContent>
+        
+        <TabsContent value="logs">
+          {selectedMachine && (
+            <LogViewer machine={selectedMachine} />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
