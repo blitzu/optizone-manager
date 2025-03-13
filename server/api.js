@@ -863,6 +863,11 @@ app.delete('/api/machines/:id', authenticateToken, (req, res) => {
   }
 });
 
+// API fallback - toate cererile API care nu sunt prinse de rutele definite
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API Endpoint Not Found' });
+});
+
 // Funcție pentru a procesa log-urile brute în format structurat cu îmbunătățiri pentru formatarea MobaXterm
 function processRawLogs(rawLogs) {
   const logs = [];
@@ -1089,13 +1094,15 @@ function mapLogLevel(level) {
 }
 
 // În producție, servim aplicația React pentru orice alte rute
-// Trebuie să fie ultimul middleware!
+// În dezvoltare, lăsăm Vite să se ocupe de servirea fișierelor frontend
+// Această rută trebuie să fie ultimul middleware!
 app.get('*', (req, res) => {
   if (process.env.NODE_ENV === 'production') {
     console.log(`Serving index.html for path: ${req.path}`);
     res.sendFile(path.join(__dirname, '../dist/index.html'));
   } else {
-    res.status(404).json({ error: 'Not Found - Development Mode' });
+    // În dezvoltare, redirectăm la serverul de dezvoltare Vite
+    res.redirect('http://localhost:8080' + req.path);
   }
 });
 
@@ -1104,3 +1111,4 @@ app.listen(PORT, () => {
   console.log(`API Server pentru Optizone Fleet Manager rulează pe portul ${PORT}`);
   console.log(`Mode: ${process.env.NODE_ENV || 'development'}`);
 });
+
