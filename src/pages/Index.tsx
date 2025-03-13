@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LogOut, ArrowLeft } from "lucide-react";
+import { LogOut } from "lucide-react";
 import MachineManager from "@/components/MachineManager";
 import LogViewer from "@/components/LogViewer";
 import UserSettings from "@/components/UserSettings";
@@ -10,7 +10,6 @@ import { Machine } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { sshService } from "@/services/sshService";
 import { toast } from "@/components/ui/use-toast";
-import { appConfig } from "@/config/appConfig";
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -136,26 +135,9 @@ const Index = () => {
         <div className={`${activeTab === 'logs' && selectedMachine ? 'px-6' : ''}`}>
           <TabsList className="grid w-full grid-cols-4">
             {isAdmin && <TabsTrigger value="machines">Gestiune PC-uri</TabsTrigger>}
-            <TabsTrigger value="logs">
-              Vizualizare Logs
-              {selectedMachine && !isAdmin && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleBackToList();
-                  }}
-                  className="ml-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
-            </TabsTrigger>
+            <TabsTrigger value="logs">Vizualizare Logs</TabsTrigger>
             {isAdmin && <TabsTrigger value="users">Gestiune Utilizatori</TabsTrigger>}
-            <TabsTrigger value="settings">
-              Setări cont
-            </TabsTrigger>
+            <TabsTrigger value="settings">Setări cont</TabsTrigger>
           </TabsList>
         </div>
         

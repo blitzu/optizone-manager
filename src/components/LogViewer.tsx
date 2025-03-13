@@ -439,7 +439,6 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
                 variant="outline" 
                 size="sm" 
                 onClick={onBackToList}
-                className="mr-2"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Înapoi la lista de mașini
