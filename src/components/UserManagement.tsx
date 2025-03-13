@@ -21,7 +21,9 @@ import {
   Shield,
   Clock,
   Globe,
-  Info
+  Info,
+  UserMinus,
+  UserCheck
 } from "lucide-react";
 import {
   AlertDialog,
@@ -42,17 +44,19 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import EmailMessageDialog from "./EmailMessageDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 const UserManagement = () => {
-  const { getAllUsers, createUser, deleteUser, resetUserPassword, changeUserPassword, updateUserRole } = useAuth();
+  const { getAllUsers, createUser, deactivateUser, reactivateUser, resetUserPassword, changeUserPassword, updateUserRole } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("user");
   const [error, setError] = useState("");
-  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [userToDeactivate, setUserToDeactivate] = useState<string | null>(null);
+  const [userToReactivate, setUserToReactivate] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
@@ -136,27 +140,41 @@ const UserManagement = () => {
     }
   };
 
-  const handleDeleteUser = async () => {
-    if (userToDelete) {
-      if (userToDelete === "1") {
+  const handleDeactivateUser = async () => {
+    if (userToDeactivate) {
+      if (userToDeactivate === "1") {
         toast({
           title: "Operațiune interzisă",
-          description: "Acest utilizator nu poate fi șters.",
+          description: "REALIZATORUL APLICAȚIEI nu poate fi dezactivat.",
           variant: "destructive",
         });
-        setUserToDelete(null);
+        setUserToDeactivate(null);
         return;
       }
       
       try {
-        const success = await deleteUser(userToDelete);
+        const success = await deactivateUser(userToDeactivate);
         if (success) {
           loadUsers();
         }
       } catch (error) {
-        console.error("Error deleting user:", error);
+        console.error("Error deactivating user:", error);
       }
-      setUserToDelete(null);
+      setUserToDeactivate(null);
+    }
+  };
+
+  const handleReactivateUser = async () => {
+    if (userToReactivate) {
+      try {
+        const success = await reactivateUser(userToReactivate);
+        if (success) {
+          loadUsers();
+        }
+      } catch (error) {
+        console.error("Error reactivating user:", error);
+      }
+      setUserToReactivate(null);
     }
   };
 
@@ -399,14 +417,19 @@ const UserManagement = () => {
               {users.map((user: User) => (
                 <div 
                   key={user.id} 
-                  className="flex items-center justify-between py-2 px-4 border rounded-md"
+                  className={`flex items-center justify-between py-2 px-4 border rounded-md ${user.active === false ? 'bg-gray-100 opacity-70' : ''}`}
                 >
                   <div className="flex items-center space-x-2">
                     {isSuperUser(user.id) && (
                       <Shield className="h-4 w-4 text-amber-500" />
                     )}
                     <div>
-                      <p className="font-medium">{user.username}</p>
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium">{user.username}</p>
+                        {user.active === false && (
+                          <Badge variant="outline" className="text-xs bg-gray-200">Dezactivat</Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         {user.role === 'admin' ? 'Administrator' : 'Utilizator'}
                         {isSuperUser(user.id) && ' (REALIZATORUL APLICAȚIEI)'}
@@ -434,7 +457,7 @@ const UserManagement = () => {
                         setUserToManage(user);
                         setShowChangePasswordDialog(true);
                       }}
-                      disabled={isSuperUser(user.id)}
+                      disabled={isSuperUser(user.id) || user.active === false}
                     >
                       <Key className="h-4 w-4" />
                     </Button>
@@ -442,14 +465,14 @@ const UserManagement = () => {
                       variant="outline" 
                       size="sm"
                       onClick={() => handleResetPassword(user)}
-                      disabled={isSuperUser(user.id)}
+                      disabled={isSuperUser(user.id) || user.active === false}
                     >
                       <RefreshCw className="h-4 w-4" />
                     </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
-                      disabled={isSuperUser(user.id)}
+                      disabled={isSuperUser(user.id) || user.active === false}
                       onClick={() => {
                         setUserToManage(user);
                         setNewRole(user.role);
@@ -458,34 +481,65 @@ const UserManagement = () => {
                     >
                       <UserCog className="h-4 w-4" />
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          disabled={isSuperUser(user.id)}
-                          onClick={() => setUserToDelete(user.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Ești sigur?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Această acțiune va șterge utilizatorul {user.username} și nu poate fi anulată.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setUserToDelete(null)}>
-                            Anulează
-                          </AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDeleteUser}>
-                            Șterge
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    
+                    {user.active === false ? (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setUserToReactivate(user.id)}
+                          >
+                            <UserCheck className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Reactivare utilizator</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Ești sigur că dorești să reactivezi utilizatorul {user.username}?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setUserToReactivate(null)}>
+                              Anulează
+                            </AlertDialogCancel>
+                            <AlertDialogAction onClick={handleReactivateUser}>
+                              Reactivează
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    ) : (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            disabled={isSuperUser(user.id)}
+                            onClick={() => setUserToDeactivate(user.id)}
+                          >
+                            <UserMinus className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Ești sigur?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Această acțiune va dezactiva utilizatorul {user.username}. Acesta nu va mai putea accesa aplicația până când nu va fi reactivat.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setUserToDeactivate(null)}>
+                              Anulează
+                            </AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeactivateUser}>
+                              Dezactivează
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </div>
                 </div>
               ))}
@@ -645,4 +699,3 @@ const UserManagement = () => {
 };
 
 export default UserManagement;
-

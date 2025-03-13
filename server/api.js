@@ -377,6 +377,7 @@ app.get('/api/users', authenticateToken, isAdmin, (req, res) => {
       id: u.id,
       username: u.username,
       role: u.role,
+      active: u.active !== false, // Dacă nu este specificat, presupunem că este activ
       requirePasswordChange: !!u.requirePasswordChange,
       lastLogin: lastLogin,
       lastLoginDate: u.lastLoginDate, // Pentru compatibilitate
@@ -405,7 +406,7 @@ app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
   
   const users = getUsers();
   
-  // Verificăm dacă username-ul există deja
+  // Verificăm dacă username-ul există deja (inclusiv utilizatori dezactivați)
   if (users.some(u => u.username === username)) {
     return res.status(400).json({ 
       success: false, 
@@ -422,10 +423,11 @@ app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
     username,
     password: bcrypt.hashSync(password, 10),
     role,
+    active: true, // Utilizator activ implicit
     requirePasswordChange: requirePasswordChange
   };
   
-  // Adăugăm utilizatorul în lista
+  // Adăugăm utilizatorul în listă
   users.push(newUser);
   const saveSuccessful = saveUsers(users);
   
@@ -443,6 +445,7 @@ app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
       id: newUser.id,
       username: newUser.username,
       role: newUser.role,
+      active: newUser.active,
       requirePasswordChange: newUser.requirePasswordChange
     }
   });
@@ -483,6 +486,65 @@ app.delete('/api/users/:id', authenticateToken, isAdmin, (req, res) => {
   res.json({
     success: true,
     message: 'Utilizatorul a fost șters cu succes'
+  });
+});
+
+// Endpoint nou pentru activarea/dezactivarea unui utilizator (doar admin)
+app.put('/api/users/:id/status', authenticateToken, isAdmin, (req, res) => {
+  const userId = req.params.id;
+  const { active } = req.body;
+  
+  if (active === undefined) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Starea de activare este obligatorie' 
+    });
+  }
+  
+  // Protecție suplimentară pentru utilizatorul cu ID-ul 1
+  if (userId === "1" && active === false) {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Nu se poate dezactiva REALIZATORUL APLICAȚIEI' 
+    });
+  }
+  
+  const users = getUsers();
+  const userIndex = users.findIndex(u => u.id === userId);
+  
+  if (userIndex === -1) {
+    return res.status(404).json({ 
+      success: false, 
+      message: 'Utilizatorul nu a fost găsit' 
+    });
+  }
+  
+  // Dacă utilizatorul este deja în starea dorită
+  if (
+    (active === true && users[userIndex].active !== false) || 
+    (active === false && users[userIndex].active === false)
+  ) {
+    return res.json({
+      success: true,
+      message: `Utilizatorul era deja ${active ? 'activ' : 'inactiv'}`
+    });
+  }
+  
+  // Actualizăm starea utilizatorului
+  users[userIndex].active = active;
+  
+  const saveSuccessful = saveUsers(users);
+  
+  if (!saveSuccessful) {
+    return res.status(500).json({
+      success: false,
+      message: 'Eroare la actualizarea stării utilizatorului. Verificați permisiunile de fișier pe server.'
+    });
+  }
+  
+  res.json({
+    success: true,
+    message: `Utilizatorul a fost ${active ? 'activat' : 'dezactivat'} cu succes`
   });
 });
 
@@ -1363,3 +1425,4 @@ app.listen(PORT, () => {
     console.error("Eroare la verificarea permisiunilor:", error.message);
   }
 });
+

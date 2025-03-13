@@ -21,6 +21,8 @@ interface AuthContextType {
   getAllUsers: () => Promise<User[]>;
   createUser: (username: string, password: string, role: UserRole, requirePasswordChange?: boolean) => Promise<boolean>;
   deleteUser: (userId: string) => Promise<boolean>;
+  deactivateUser: (userId: string) => Promise<boolean>;
+  reactivateUser: (userId: string) => Promise<boolean>;
   resetUserPassword: (userId: string) => Promise<string | null>;
   changeUserPassword: (userId: string, newPassword: string, requirePasswordChange?: boolean) => Promise<boolean>;
   updateUserRole: (userId: string, role: UserRole) => Promise<boolean>;
@@ -36,6 +38,8 @@ const AuthContext = createContext<AuthContextType>({
   getAllUsers: async () => [],
   createUser: async () => false,
   deleteUser: async () => false,
+  deactivateUser: async () => false,
+  reactivateUser: async () => false,
   resetUserPassword: async () => null,
   changeUserPassword: async () => false,
   updateUserRole: async () => false,
@@ -397,6 +401,89 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const deactivateUser = async (userId: string): Promise<boolean> => {
+    try {
+      if (userId === "1") {
+        toast({
+          title: "Operațiune interzisă",
+          description: "Nu se poate dezactiva REALIZATORUL APLICAȚIEI",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      const response = await axios.put(
+        `/api/users/${userId}/status`,
+        { active: false },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      
+      if (response.data.success) {
+        toast({
+          title: "Succes",
+          description: "Utilizatorul a fost dezactivat cu succes!",
+        });
+        return true;
+      } else {
+        toast({
+          title: "Eroare",
+          description: response.data.message || "Eroare la dezactivarea utilizatorului",
+          variant: "destructive",
+        });
+        return false;
+      }
+    } catch (error: any) {
+      console.error("Error deactivating user:", error);
+      toast({
+        title: "Eroare",
+        description: error.response?.data?.message || "Eroare la dezactivarea utilizatorului",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const reactivateUser = async (userId: string): Promise<boolean> => {
+    try {
+      const response = await axios.put(
+        `/api/users/${userId}/status`,
+        { active: true },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      
+      if (response.data.success) {
+        toast({
+          title: "Succes",
+          description: "Utilizatorul a fost reactivat cu succes!",
+        });
+        return true;
+      } else {
+        toast({
+          title: "Eroare",
+          description: response.data.message || "Eroare la reactivarea utilizatorului",
+          variant: "destructive",
+        });
+        return false;
+      }
+    } catch (error: any) {
+      console.error("Error reactivating user:", error);
+      toast({
+        title: "Eroare",
+        description: error.response?.data?.message || "Eroare la reactivarea utilizatorului",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const resetUserPassword = async (userId: string): Promise<string | null> => {
     try {
       const response = await axios.post(
@@ -496,6 +583,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         getAllUsers,
         createUser,
         deleteUser,
+        deactivateUser,
+        reactivateUser,
         resetUserPassword,
         changeUserPassword,
         updateUserRole,
