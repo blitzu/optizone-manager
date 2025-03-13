@@ -1,5 +1,5 @@
 
-import { format, formatISO, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ro } from "date-fns/locale";
 
 // Funcții pentru formatarea datelor cu fusul orar România/București
@@ -7,8 +7,7 @@ export const formatDateTime = (dateString: string): string => {
   try {
     const date = parseISO(dateString);
     
-    // România este UTC+2 (iarna) și UTC+3 (vara)
-    // Vom folosi o abordare simplificată pentru demo
+    // Formatare dată și oră în format românesc cu 24h
     return format(date, "dd.MM.yyyy HH:mm:ss", {
       locale: ro,
     });
@@ -26,5 +25,6 @@ export const combineDateTime = (date: Date, timeString: string): Date => {
 };
 
 export const formatDateForAPI = (date: Date): string => {
-  return formatISO(date);
+  // Format ISO pentru API
+  return date.toISOString();
 };
