@@ -1,3 +1,4 @@
+
 export interface Machine {
   id: string;
   ip: string;
@@ -14,12 +15,14 @@ export interface LogRequest {
   startDate?: string;
   endDate?: string;
   liveMode: boolean;
+  applicationName?: string;
 }
 
 export interface LogEntry {
   timestamp: string;
   level: "info" | "warning" | "error" | "debug";
   message: string;
+  syslogIdentifier?: string;
 }
 
 export type UserRole = "admin" | "user";

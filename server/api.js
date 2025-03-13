@@ -63,7 +63,7 @@ app.post('/api/test-connection', (req, res) => {
 
 // Endpoint pentru obținerea log-urilor
 app.post('/api/logs', (req, res) => {
-  const { ip, sshUsername, sshPassword, startDate, endDate, liveMode } = req.body;
+  const { ip, sshUsername, sshPassword, startDate, endDate, liveMode, applicationName } = req.body;
   
   if (!ip || !sshUsername || !sshPassword) {
     return res.status(400).json({ 
@@ -77,14 +77,31 @@ app.post('/api/logs', (req, res) => {
   // Comanda pentru a obține log-uri
   let command = 'journalctl -n 100';
   
+  // Adăugăm filtrul pentru aplicație dacă este specificat
+  if (applicationName && applicationName.trim() !== '') {
+    const appFilter = applicationName.trim();
+    command = `journalctl -u ${appFilter} -n 100`;
+  }
+  
   if (startDate && endDate) {
     // Formatăm datele pentru a fi utilizate în comanda journalctl
     const start = new Date(startDate).toISOString();
     const end = new Date(endDate).toISOString();
-    command = `journalctl --since="${start}" --until="${end}" -o json`;
+    
+    if (applicationName && applicationName.trim() !== '') {
+      command = `journalctl -u ${applicationName.trim()} --since="${start}" --until="${end}" -o json`;
+    } else {
+      command = `journalctl --since="${start}" --until="${end}" -o json`;
+    }
   } else if (liveMode) {
-    command = 'journalctl -f -n 30 -o json';
+    if (applicationName && applicationName.trim() !== '') {
+      command = `journalctl -f -n 30 -u ${applicationName.trim()} -o json`;
+    } else {
+      command = 'journalctl -f -n 30 -o json';
+    }
   }
+  
+  console.log(`Executare comandă SSH: ${command}`);
   
   let logs = [];
   
@@ -93,6 +110,20 @@ app.post('/api/logs', (req, res) => {
       if (err) {
         conn.end();
         return res.status(500).json({ error: `Eroare la executarea comenzii: ${err.message}` });
+      }
+      
+      if (liveMode) {
+        // Pentru mod live, setăm timeout pentru a închide conexiunea după un timp
+        // Clientul va reîncerca periodic pentru actualizări
+        setTimeout(() => {
+          try {
+            stream.close();
+            conn.end();
+          } catch (e) {
+            console.error("Eroare la închiderea stream-ului:", e);
+          }
+          res.json(logs);
+        }, 5000); // Obținem date pentru 5 secunde, apoi închidem conexiunea
       }
       
       stream.on('data', (data) => {
@@ -110,16 +141,18 @@ app.post('/api/logs', (req, res) => {
                 
                 // Transformăm în formatul nostru
                 logs.push({
-                  timestamp: new Date(logEntry.__REALTIME_TIMESTAMP / 1000).toISOString(),
+                  timestamp: new Date(parseInt(logEntry.__REALTIME_TIMESTAMP) / 1000).toISOString(),
                   level: determineLogLevel(logEntry.PRIORITY),
-                  message: logEntry.MESSAGE
+                  message: logEntry.MESSAGE,
+                  syslogIdentifier: logEntry.SYSLOG_IDENTIFIER || 'system'
                 });
               } catch (e) {
                 // Dacă nu este JSON valid, adăugăm ca text simplu
                 logs.push({
                   timestamp: new Date().toISOString(),
                   level: 'info',
-                  message: line
+                  message: line,
+                  syslogIdentifier: 'system'
                 });
               }
             }
@@ -129,15 +162,19 @@ app.post('/api/logs', (req, res) => {
           logs.push({
             timestamp: new Date().toISOString(),
             level: 'info',
-            message: output
+            message: output,
+            syslogIdentifier: 'system'
           });
         }
       });
       
-      stream.on('end', () => {
-        conn.end();
-        res.json(logs);
-      });
+      if (!liveMode) {
+        // Doar pentru mod non-live, încheiem la end
+        stream.on('end', () => {
+          conn.end();
+          res.json(logs);
+        });
+      }
       
       stream.on('error', (streamErr) => {
         conn.end();

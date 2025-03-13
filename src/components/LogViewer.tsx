@@ -23,6 +23,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const [liveMode, setLiveMode] = useState(false);
   const [startDateTime, setStartDateTime] = useState<Date>();
   const [endDateTime, setEndDateTime] = useState<Date>();
+  const [applicationName, setApplicationName] = useState<string>("");
   const liveIntervalRef = useRef<number>();
 
   const getLevelColor = (level: LogEntry['level']) => {
@@ -45,7 +46,8 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         sshPassword: machine.sshPassword,
         liveMode: false,
         startDate: startDateTime?.toISOString(),
-        endDate: endDateTime?.toISOString()
+        endDate: endDateTime?.toISOString(),
+        applicationName: applicationName
       };
       
       const logData = await sshService.fetchLogs(logRequest);
@@ -77,11 +79,16 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         ip: machine.ip,
         sshUsername: machine.sshUsername,
         sshPassword: machine.sshPassword,
-        liveMode: true
+        liveMode: true,
+        applicationName: applicationName
       };
       
       const liveLogs = await sshService.fetchLogs(logRequest);
+      
       setLogs(prev => {
+        // Dacă nu avem log-uri noi, nu actualizăm starea
+        if (!liveLogs || liveLogs.length === 0) return prev;
+        
         const combined = [...prev, ...liveLogs];
         // Eliminăm duplicatele și păstrăm doar ultimele 1000 de log-uri
         const uniqueLogs = Array.from(new Map(combined.map(log => 
@@ -92,12 +99,14 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     } catch (error) {
       console.error('Eroare la obținerea log-urilor live:', error);
       // Nu afișăm toast pentru a nu deranja utilizatorul la fiecare eroare în modul live
-      stopLiveMode();
-      toast({
-        title: "Modul live oprit",
-        description: "S-a întâmpinat o eroare în obținerea log-urilor live. Modul live a fost oprit.",
-        variant: "destructive"
-      });
+      if (error.toString().includes('ECONNREFUSED') || error.toString().includes('Network Error')) {
+        stopLiveMode();
+        toast({
+          title: "Modul live oprit",
+          description: "Conexiunea SSH a fost întreruptă. Modul live a fost oprit.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -105,6 +114,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     setLiveMode(false);
     if (liveIntervalRef.current) {
       clearInterval(liveIntervalRef.current);
+      liveIntervalRef.current = undefined;
     }
   };
 
@@ -173,7 +183,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         <Tabs defaultValue="view" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="view">Vizualizare</TabsTrigger>
-            <TabsTrigger value="filter">Filtrare după dată și oră</TabsTrigger>
+            <TabsTrigger value="filter">Filtrare</TabsTrigger>
           </TabsList>
           
           <TabsContent value="view">
@@ -196,6 +206,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                         [{formatDateTime(log.timestamp)}]
                       </span>{' '}
                       <span className="font-semibold">[{log.level.toUpperCase()}]</span>{' '}
+                      {log.syslogIdentifier && <span className="text-purple-400">[{log.syslogIdentifier}]</span>}{' '}
                       {log.message}
                     </div>
                   ))}
@@ -207,6 +218,20 @@ const LogViewer = ({ machine }: LogViewerProps) => {
           <TabsContent value="filter">
             <div className="grid gap-6">
               <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Numele aplicației/serviciului</label>
+                  <Input
+                    placeholder="Introduceți numele aplicației (ex: nginx.service)"
+                    value={applicationName}
+                    onChange={(e) => setApplicationName(e.target.value)}
+                    className="mb-4"
+                  />
+                  <div className="flex flex-col space-y-1 text-xs text-muted-foreground">
+                    <p>Introduceți numele serviciului systemd (ex: nginx.service)</p>
+                    <p>Lăsați gol pentru a vedea toate log-urile sistemului</p>
+                  </div>
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium mb-1 block">De la data și ora</label>
@@ -394,8 +419,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                 
                 <Button 
                   onClick={fetchLogData} 
-                  disabled={loading || !startDateTime || !endDateTime || 
-                    (startDateTime > endDateTime)}
+                  disabled={loading || (startDateTime && endDateTime && startDateTime > endDateTime)}
                   className="w-full"
                 >
                   {loading ? 

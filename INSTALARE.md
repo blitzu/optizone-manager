@@ -192,6 +192,19 @@ Pentru producție, recomandăm configurarea unui server web precum Nginx:
    http://IP_LOCAL
    ```
 
+## Funcționalități principale
+
+### Vizualizarea log-urilor specifice unei aplicații
+
+Pentru a vizualiza log-urile specifice unei anumite aplicații sau serviciu systemd:
+
+1. Navigați la tab-ul "Vizualizare Logs"
+2. În secțiunea "Filtrare", introduceți numele serviciului systemd în câmpul "Numele aplicației/serviciului"
+   - Exemplu: `nginx.service`, `apache2.service`, `mysql.service`, etc.
+3. Utilizați filtrele de dată sau activați modul live
+
+Dacă lăsați câmpul gol, se vor afișa toate log-urile sistemului.
+
 ## Depanare și probleme cunoscute
 
 ### Probleme la pornirea aplicației
@@ -203,6 +216,11 @@ Pentru producție, recomandăm configurarea unui server web precum Nginx:
 - Verificați dacă credențialele SSH sunt corecte.
 - Asigurați-vă că serverul SSH este pornit și accesibil.
 - Verificați dacă există reguli de firewall care blochează portul 22.
+
+### Live mode nu funcționează corect
+- Verificați conexiunea SSH să fie stabilă
+- Asigurați-vă că serviciul/aplicația specificată există și generează log-uri
+- Verificați dacă există permisiuni suficiente pentru a citi log-urile
 
 ### Pagină albă în browser
 - Verificați consola browser-ului pentru erori (apăsați F12).
