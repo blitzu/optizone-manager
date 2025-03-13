@@ -69,7 +69,7 @@ const Login = () => {
           </form>
         </CardContent>
         <CardFooter className="flex justify-center text-sm text-muted-foreground">
-          <p>Utilizator demo: user/user123 sau admin/admin123</p>
+          {/* Demo user information removed */}
         </CardFooter>
       </Card>
     </div>
