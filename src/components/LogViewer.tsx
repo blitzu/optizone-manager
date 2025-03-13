@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -432,15 +433,23 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
   const renderRawLogLine = (log: LogEntry, index: number) => {
     let logText = log.originalLine || log.message;
     
+    // Enhanced sanitization to better handle ANSI color codes and control characters
     logText = logText
-      .replace(/\u001b\[\d+(;\d+)*m/g, '')
+      // Remove ANSI color codes like [1;36m
+      .replace(/\x1b\[\d+(;\d+)*m/g, '') // Standard ANSI color codes
+      .replace(/\[\d+(;\d+)*m/g, '')     // ANSI color codes without escape character
+      // Remove other control characters
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
       .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
       .replace(/\x1b\][0-9];.*?\x07/g, '')
       .replace(/\x00/g, '')
+      // Clean up formatting
       .replace(/\s{3,}/g, '  ')
+      // Remove Unicode control characters
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      // Remove box drawing characters
       .replace(/[\u2500-\u257F]/g, '')
+      // Remove any remaining non-printable characters
       .replace(/[^\x20-\x7E\t\r\n]/g, '');
     
     const textColor = getTextColor(logText);
