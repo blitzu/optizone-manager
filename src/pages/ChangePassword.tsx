@@ -83,16 +83,21 @@ const ChangePassword = () => {
           description: "Parola a fost schimbată cu succes. Vă rugăm să vă autentificați din nou cu noua parolă.",
         });
         
-        // Ensure we log out and redirect to login
+        // Ensure we log out and redirect to login with a short delay to show the success message
         setTimeout(() => {
-          // First clear local storage to ensure complete logout
+          // First completely clear localStorage
+          localStorage.clear(); // Clear ALL localStorage items, not just token and user
+          
+          // Remove specific authentication items
           localStorage.removeItem("token");
           localStorage.removeItem("user");
-          // Then call the logout function
+          
+          // Call the logout function to clean up auth context state
           logout();
-          // Explicitly navigate to login page
+          
+          // Force navigation to login page with replace to prevent back navigation
           navigate("/login", { replace: true });
-        }, 2000);
+        }, 1500);
       } else {
         toast({
           title: "Eroare",

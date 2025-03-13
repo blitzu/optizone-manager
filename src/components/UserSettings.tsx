@@ -55,8 +55,13 @@ const UserSettings = () => {
         // Log the user out after successful password change with a small delay
         // to allow them to see the success message
         setTimeout(() => {
+          // First clear localStorage to ensure complete logout
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          // Then call the logout function
           logout();
-          navigate("/login");
+          // Force navigation to login page with replace to prevent back navigation
+          navigate("/login", { replace: true });
         }, 2000);
       }
     } catch (err) {
