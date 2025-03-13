@@ -15,7 +15,16 @@ export const sshService = {
    */
   fetchLogs: async (request: LogRequest): Promise<LogEntry[]> => {
     try {
-      const response = await axios.post(`${API_URL}/logs`, request);
+      const token = localStorage.getItem('auth-token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      const response = await axios.post(`${API_URL}/logs`, request, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Eroare la extragerea log-urilor:', error);
@@ -28,7 +37,16 @@ export const sshService = {
    */
   testConnection: async (machine: Machine): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await axios.post(`${API_URL}/test-connection`, machine);
+      const token = localStorage.getItem('auth-token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      const response = await axios.post(`${API_URL}/test-connection`, machine, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Eroare la testarea conexiunii:', error);
@@ -41,6 +59,11 @@ export const sshService = {
    */
   executeCommand: async (request: SSHCommandRequest): Promise<{ success: boolean; output: string }> => {
     try {
+      const token = localStorage.getItem('auth-token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
       // Verificăm dacă comanda este sudo și adăugăm parola
       let modifiedRequest = { ...request };
       
@@ -49,7 +72,11 @@ export const sshService = {
         modifiedRequest.command = `echo "${request.sshPassword}" | sudo -S ${request.command.substring(5)}`;
       }
       
-      const response = await axios.post(`${API_URL}/execute-command`, modifiedRequest);
+      const response = await axios.post(`${API_URL}/execute-command`, modifiedRequest, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Eroare la executarea comenzii:', error);

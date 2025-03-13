@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Machine, MachineResponse } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -45,14 +44,21 @@ const MachineManager = ({
   const fetchMachines = async () => {
     setIsLoading(true);
     try {
+      const token = localStorage.getItem('auth-token');
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
       const response = await fetch(`${API_URL}/machines`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
       if (!response.ok) {
-        throw new Error('Failed to fetch machines');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch machines');
       }
       
       const data: MachineResponse = await response.json();
@@ -114,6 +120,17 @@ const MachineManager = ({
     }
 
     try {
+      const token = localStorage.getItem('auth-token');
+      
+      if (!token) {
+        toast({
+          title: "Eroare de autentificare",
+          description: "Nu sunteți autentificat. Vă rugăm să vă autentificați din nou.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       let response;
       
       if (isEditing) {
@@ -122,7 +139,7 @@ const MachineManager = ({
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify(currentMachine)
         });
@@ -132,43 +149,42 @@ const MachineManager = ({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify(currentMachine)
         });
       }
       
       if (!response.ok) {
-        throw new Error('Failed to save machine');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save machine');
       }
       
       const data: MachineResponse = await response.json();
       
       if (data.success) {
-        if (isEditing) {
+        if (isEditing && data.machine) {
           // Update existing machine in the list
           const updatedMachines = machines.map(m => 
-            m.id === currentMachine.id ? { ...data.machine as Machine } : m
+            m.id === currentMachine.id ? { ...data.machine } : m
           );
           saveMachines(updatedMachines);
           
           if (selectedMachine?.id === currentMachine.id) {
-            setSelectedMachine(data.machine as Machine);
+            setSelectedMachine(data.machine);
           }
           
           toast({
             title: "Mașină actualizată",
             description: `Mașina ${currentMachine.hostname} a fost actualizată cu succes.`
           });
-        } else {
+        } else if (data.machine) {
           // Add new machine to the list
-          if (data.machine) {
-            saveMachines([...machines, data.machine]);
-            toast({
-              title: "Mașină adăugată",
-              description: `Mașina ${data.machine.hostname} a fost adăugată cu succes.`
-            });
-          }
+          saveMachines([...machines, data.machine]);
+          toast({
+            title: "Mașină adăugată",
+            description: `Mașina ${data.machine.hostname} a fost adăugată cu succes.`
+          });
         }
         
         // Reset form and close dialog
@@ -181,11 +197,11 @@ const MachineManager = ({
           variant: "destructive"
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving machine:", error);
       toast({
         title: "Eroare de conexiune",
-        description: "Nu s-a putut conecta la server pentru a salva mașina.",
+        description: error.message || "Nu s-a putut conecta la server pentru a salva mașina.",
         variant: "destructive"
       });
     }
@@ -193,15 +209,27 @@ const MachineManager = ({
 
   const handleDelete = async (id: string) => {
     try {
+      const token = localStorage.getItem('auth-token');
+      
+      if (!token) {
+        toast({
+          title: "Eroare de autentificare",
+          description: "Nu sunteți autentificat. Vă rugăm să vă autentificați din nou.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       const response = await fetch(`${API_URL}/machines/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
       if (!response.ok) {
-        throw new Error('Failed to delete machine');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete machine');
       }
       
       const data: MachineResponse = await response.json();
@@ -225,11 +253,11 @@ const MachineManager = ({
           variant: "destructive"
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting machine:", error);
       toast({
         title: "Eroare de conexiune",
-        description: "Nu s-a putut conecta la server pentru a șterge mașina.",
+        description: error.message || "Nu s-a putut conecta la server pentru a șterge mașina.",
         variant: "destructive"
       });
     }

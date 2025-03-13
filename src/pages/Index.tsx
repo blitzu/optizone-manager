@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -22,18 +21,25 @@ const Index = () => {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
 
-  // Initialize machines from server
+  // Initialize machines from server - only once on component mount
   useEffect(() => {
     const fetchMachines = async () => {
       try {
+        const token = localStorage.getItem('auth-token');
+        
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+        
         const response = await fetch(`${API_URL}/machines`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+            'Authorization': `Bearer ${token}`
           }
         });
         
         if (!response.ok) {
-          throw new Error('Failed to fetch machines');
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to fetch machines');
         }
         
         const data = await response.json();
@@ -42,9 +48,19 @@ const Index = () => {
           setMachines(data.machines);
         } else {
           console.error("Error fetching machines:", data.message);
+          toast({
+            title: "Eroare",
+            description: data.message || "Nu s-au putut încărca mașinile.",
+            variant: "destructive"
+          });
         }
       } catch (error) {
         console.error("Error fetching machines:", error);
+        toast({
+          title: "Eroare de conexiune",
+          description: "Nu s-a putut conecta la server pentru a încărca mașinile.",
+          variant: "destructive"
+        });
       }
     };
     

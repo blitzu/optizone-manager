@@ -1,4 +1,3 @@
-
 /**
  * Server API Express pentru Optizone Fleet Manager
  * 
@@ -25,6 +24,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'optizone-fleet-manager-secret-key'
 
 // Path pentru fișierul cu utilizatori
 const USERS_FILE_PATH = path.join(__dirname, 'users.json');
+// Path pentru fișierul cu mașini
+const MACHINES_FILE_PATH = path.join(__dirname, 'machines.json');
 
 // Middleware
 app.use(cors());
@@ -64,6 +65,23 @@ function getUsers() {
 // Funcție pentru a salva utilizatorii în fișier
 function saveUsers(users) {
   fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(users, null, 2));
+}
+
+// Funcție pentru a citi mașinile din fișier
+function getMachines() {
+  if (!fs.existsSync(MACHINES_FILE_PATH)) {
+    // Inițializăm cu un array gol dacă fișierul nu există
+    fs.writeFileSync(MACHINES_FILE_PATH, JSON.stringify([], null, 2));
+    return [];
+  }
+  
+  const machinesData = fs.readFileSync(MACHINES_FILE_PATH, 'utf8');
+  return JSON.parse(machinesData);
+}
+
+// Funcție pentru a salva mașinile în fișier
+function saveMachines(machines) {
+  fs.writeFileSync(MACHINES_FILE_PATH, JSON.stringify(machines, null, 2));
 }
 
 // Verifică autentificarea pentru rutele protejate
@@ -634,6 +652,212 @@ app.post('/api/logs', (req, res) => {
     username: sshUsername,
     password: sshPassword
   });
+});
+
+// Endpoint pentru obținerea tuturor mașinilor
+app.get('/api/machines', authenticateToken, (req, res) => {
+  try {
+    const machines = getMachines();
+    
+    // Filtrăm mașinile în funcție de rolul utilizatorului
+    let filteredMachines;
+    if (req.user.role === 'admin') {
+      // Administratorii văd toate mașinile
+      filteredMachines = machines;
+    } else {
+      // Utilizatorii standard văd doar mașinile asociate cu ei sau fără proprietar
+      filteredMachines = machines.filter(m => !m.userId || m.userId === req.user.id);
+    }
+    
+    res.json({
+      success: true,
+      machines: filteredMachines
+    });
+  } catch (error) {
+    console.error("Eroare la obținerea mașinilor:", error);
+    res.status(500).json({
+      success: false,
+      message: "Eroare la obținerea mașinilor"
+    });
+  }
+});
+
+// Endpoint pentru a adăuga o mașină nouă
+app.post('/api/machines', authenticateToken, (req, res) => {
+  try {
+    const { ip, hostname, sshUsername, sshPassword } = req.body;
+    
+    if (!ip || !hostname) {
+      return res.status(400).json({
+        success: false,
+        message: "IP-ul și hostname-ul sunt obligatorii"
+      });
+    }
+    
+    const machines = getMachines();
+    
+    // Verificăm dacă mașina cu acest IP sau hostname există deja
+    if (machines.some(m => m.ip === ip)) {
+      return res.status(400).json({
+        success: false,
+        message: "O mașină cu acest IP există deja"
+      });
+    }
+    
+    if (machines.some(m => m.hostname === hostname)) {
+      return res.status(400).json({
+        success: false,
+        message: "O mașină cu acest hostname există deja"
+      });
+    }
+    
+    // Generăm un ID unic pentru mașină
+    const id = crypto.randomUUID();
+    
+    // Creăm mașina nouă
+    const newMachine = {
+      id,
+      ip,
+      hostname,
+      sshUsername,
+      sshPassword,
+      userId: req.user.id // Asociem mașina cu utilizatorul curent
+    };
+    
+    // Adăugăm mașina în listă
+    machines.push(newMachine);
+    saveMachines(machines);
+    
+    res.json({
+      success: true,
+      message: "Mașina a fost adăugată cu succes",
+      machine: newMachine
+    });
+  } catch (error) {
+    console.error("Eroare la adăugarea mașinii:", error);
+    res.status(500).json({
+      success: false,
+      message: "Eroare la adăugarea mașinii"
+    });
+  }
+});
+
+// Endpoint pentru a actualiza o mașină existentă
+app.put('/api/machines/:id', authenticateToken, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ip, hostname, sshUsername, sshPassword } = req.body;
+    
+    if (!ip || !hostname) {
+      return res.status(400).json({
+        success: false,
+        message: "IP-ul și hostname-ul sunt obligatorii"
+      });
+    }
+    
+    const machines = getMachines();
+    
+    // Găsim mașina după ID
+    const machineIndex = machines.findIndex(m => m.id === id);
+    
+    if (machineIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Mașina nu a fost găsită"
+      });
+    }
+    
+    // Verificăm dacă utilizatorul are permisiunea să modifice mașina
+    if (req.user.role !== 'admin' && machines[machineIndex].userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Nu aveți permisiunea de a modifica această mașină"
+      });
+    }
+    
+    // Verificăm dacă IP-ul sau hostname-ul actualizat există deja la altă mașină
+    const otherMachines = machines.filter(m => m.id !== id);
+    
+    if (otherMachines.some(m => m.ip === ip)) {
+      return res.status(400).json({
+        success: false,
+        message: "O altă mașină cu acest IP există deja"
+      });
+    }
+    
+    if (otherMachines.some(m => m.hostname === hostname)) {
+      return res.status(400).json({
+        success: false,
+        message: "O altă mașină cu acest hostname există deja"
+      });
+    }
+    
+    // Actualizăm mașina
+    const updatedMachine = {
+      ...machines[machineIndex],
+      ip,
+      hostname,
+      sshUsername,
+      sshPassword
+    };
+    
+    machines[machineIndex] = updatedMachine;
+    saveMachines(machines);
+    
+    res.json({
+      success: true,
+      message: "Mașina a fost actualizată cu succes",
+      machine: updatedMachine
+    });
+  } catch (error) {
+    console.error("Eroare la actualizarea mașinii:", error);
+    res.status(500).json({
+      success: false,
+      message: "Eroare la actualizarea mașinii"
+    });
+  }
+});
+
+// Endpoint pentru a șterge o mașină
+app.delete('/api/machines/:id', authenticateToken, (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const machines = getMachines();
+    
+    // Găsim mașina după ID
+    const machine = machines.find(m => m.id === id);
+    
+    if (!machine) {
+      return res.status(404).json({
+        success: false,
+        message: "Mașina nu a fost găsită"
+      });
+    }
+    
+    // Verificăm dacă utilizatorul are permisiunea să șteargă mașina
+    if (req.user.role !== 'admin' && machine.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Nu aveți permisiunea de a șterge această mașină"
+      });
+    }
+    
+    // Ștergem mașina
+    const updatedMachines = machines.filter(m => m.id !== id);
+    saveMachines(updatedMachines);
+    
+    res.json({
+      success: true,
+      message: "Mașina a fost ștearsă cu succes"
+    });
+  } catch (error) {
+    console.error("Eroare la ștergerea mașinii:", error);
+    res.status(500).json({
+      success: false,
+      message: "Eroare la ștergerea mașinii"
+    });
+  }
 });
 
 // Funcție pentru a procesa log-urile brute în format structurat cu îmbunătățiri pentru formatarea MobaXterm
