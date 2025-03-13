@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Machine, LogEntry, LogRequest } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -37,42 +36,42 @@ const LogViewer = ({ machine }: LogViewerProps) => {
   const terminalInputRef = useRef<HTMLInputElement>(null);
   const terminalOutputRef = useRef<HTMLDivElement>(null);
 
-  // Set up color mappings to match MobaXterm's exact styling
+  // MobaXterm color scheme mapping based on log types
   const getColorForType = (type: string): string => {
-    if (type === "EE") return "text-red-500";
-    if (type === "MQ") return "text-purple-400";
-    if (type === "DE") return "text-amber-400";
-    if (type === "NO") return "text-sky-300";
-    if (type === "MAIN") return "text-green-400";
-    if (type === "WARNING") return "text-amber-400";
-    return "text-white";
+    if (type === "EE") return "text-mobaxterm-red";
+    if (type === "MQ") return "text-mobaxterm-magenta";
+    if (type === "DE") return "text-mobaxterm-yellow";
+    if (type === "NO") return "text-mobaxterm-cyan";
+    if (type === "MAIN") return "text-mobaxterm-green";
+    if (type === "WARNING") return "text-mobaxterm-yellow";
+    return "text-mobaxterm-white";
   };
 
   // Custom color for specific log formats
   const getColorForSpecialLine = (line: string): string | null => {
-    if (line.includes("[MAIN][WARNING]")) return "text-red-400";
-    if (line.includes("stop-resumes")) return "text-red-400";
+    if (line.includes("[MAIN][WARNING]")) return "text-mobaxterm-yellow";
+    if (line.includes("stop-resumes")) return "text-mobaxterm-red";
     return null;
   };
 
   // Get text color for log level
   const getLevelColor = (level: LogEntry['level']) => {
     switch (level) {
-      case "error": return "text-red-500";
-      case "warning": return "text-amber-400";
-      case "debug": return "text-blue-400";
-      default: return "text-white";
+      case "error": return "text-mobaxterm-red";
+      case "warning": return "text-mobaxterm-yellow";
+      case "debug": return "text-mobaxterm-blue";
+      default: return "text-mobaxterm-white";
     }
   };
 
   // Get color for array values based on MobaXterm style
   const getArrayValueColor = (value: string) => {
-    if (value === "'gema'") return "text-green-400";
-    if (value === "None") return "text-gray-500";
-    if (value.startsWith("'CVP-") || value.startsWith("'LPR-")) return "text-cyan-400";
-    if (value === "'VIEW_SCENE_01'") return "text-yellow-400";
-    if (value.includes("-vs'")) return "text-sky-300";
-    return "text-white";
+    if (value === "'gema'") return "text-mobaxterm-green";
+    if (value === "None") return "text-mobaxterm-brightBlack";
+    if (value.startsWith("'CVP-") || value.startsWith("'LPR-")) return "text-mobaxterm-cyan";
+    if (value === "'VIEW_SCENE_01'") return "text-mobaxterm-yellow";
+    if (value.includes("-vs'")) return "text-mobaxterm-cyan";
+    return "text-mobaxterm-white";
   };
 
   const fetchLogData = async () => {
@@ -350,7 +349,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     };
   }, [machine.id]);
 
-  // This function parses MobaXterm style log lines
   const parseMobaxtermLogLine = (logLine: string) => {
     // Handle [EE] format
     const eeRegex = /\[EE\]\[([^\]]+)\]\[([^\]]+)\]\[([^\]]+)\]\s+(\d+):\s+(.+)/;
@@ -373,7 +371,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     return null;
   };
 
-  // Function to render array format like in the screenshots, with colors
   const renderArrayValues = (content: string) => {
     // Match array format like: ['gema', 'CVP-12-1', 'VIEW_SCENE_01', 'CVP-12-1-vs']
     if (content.startsWith('[') && content.endsWith(']')) {
@@ -384,14 +381,14 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         
         return (
           <span className="flex items-center">
-            <span className="text-purple-300">[</span>
+            <span className="text-mobaxterm-magenta">[</span>
             {values.map((value, i) => (
               <span key={i}>
                 <span className={getArrayValueColor(value)}>{value}</span>
-                {i < values.length - 1 && <span className="text-gray-400">, </span>}
+                {i < values.length - 1 && <span className="text-mobaxterm-brightBlack">, </span>}
               </span>
             ))}
-            <span className="text-purple-300">]</span>
+            <span className="text-mobaxterm-magenta">]</span>
           </span>
         );
       } catch (e) {
@@ -402,7 +399,6 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     return <span>{content}</span>;
   };
 
-  // Function to render log line in MobaXterm format based on the original log line
   const renderExactMobaxtermLogLine = (log: LogEntry, index: number) => {
     // First check if we have the original line to render in exact format
     if (log.originalLine) {
@@ -416,11 +412,11 @@ const LogViewer = ({ machine }: LogViewerProps) => {
           
           return (
             <div key={index} className="mb-1 font-mono flex flex-wrap whitespace-nowrap">
-              <span className="text-red-500">[EE]</span>
-              <span className="text-gray-400">[{timestamp}]</span>
+              <span className="text-mobaxterm-red">[EE]</span>
+              <span className="text-mobaxterm-brightBlack">[{timestamp}]</span>
               <span className={getColorForType(type1)}>[{type1}]</span>
               <span className={getColorForType(type2)}>[{type2}]</span>
-              <span className="text-gray-500">{pid}: </span>
+              <span className="text-mobaxterm-brightBlack">{pid}: </span>
               {renderArrayValues(content)}
             </div>
           );
@@ -428,7 +424,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
         
         // If regex doesn't match, render the line in red
         return (
-          <div key={index} className="mb-1 font-mono text-red-500">
+          <div key={index} className="mb-1 font-mono text-mobaxterm-red">
             {log.originalLine}
           </div>
         );
@@ -454,9 +450,9 @@ const LogViewer = ({ machine }: LogViewerProps) => {
             
             return (
               <div key={index} className="mb-1 font-mono flex flex-wrap whitespace-nowrap">
-                <span className="text-gray-400">{components[0]}</span>
+                <span className="text-mobaxterm-brightBlack">{components[0]}</span>
                 <span className={`${getLevelColor(log.level)}`}>{components[1]}</span>
-                <span className="text-cyan-300">{components[2]}</span>
+                <span className="text-mobaxterm-cyan">{components[2]}</span>
                 <span className="ml-1">{renderArrayValues(remainingParts)}</span>
               </div>
             );
@@ -467,7 +463,7 @@ const LogViewer = ({ machine }: LogViewerProps) => {
       }
       
       return (
-        <div key={index} className="mb-1 font-mono text-white">
+        <div key={index} className="mb-1 font-mono text-mobaxterm-white">
           {log.originalLine}
         </div>
       );
@@ -476,13 +472,13 @@ const LogViewer = ({ machine }: LogViewerProps) => {
     // Default rendering for logs without originalLine
     return (
       <div key={index} className={`mb-1 font-mono ${getLevelColor(log.level)}`}>
-        <span className="text-gray-400">
+        <span className="text-mobaxterm-brightBlack">
           [{formatDateTime(log.timestamp)}]
         </span>{' '}
         <span className={`font-semibold ${getLevelColor(log.level)}`}>
           [{log.level.toUpperCase()}]
         </span>{' '}
-        <span className="text-cyan-300">
+        <span className="text-mobaxterm-cyan">
           [{log.syslogIdentifier || "system"}]
         </span>{' '}
         <span>{log.message}</span>
@@ -538,15 +534,15 @@ const LogViewer = ({ machine }: LogViewerProps) => {
             <div 
               ref={logContainerRef}
               onScroll={handleScroll}
-              className="border-0 h-[70vh] overflow-auto bg-black text-white p-4 font-mono text-sm w-full"
+              className="border-0 h-[70vh] overflow-auto bg-mobaxterm-background text-mobaxterm-foreground p-4 font-mono text-sm w-full"
               style={{ fontFamily: 'Consolas, Monaco, "Andale Mono", monospace' }}
             >
               {loading ? (
                 <div className="flex justify-center items-center h-full">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-mobaxterm-foreground"></div>
                 </div>
               ) : logs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <div className="flex flex-col items-center justify-center h-full text-mobaxterm-brightBlack">
                   <TerminalIcon className="h-12 w-12 mb-2" />
                   <p>Nu există log-uri disponibile</p>
                   <p className="text-xs mt-2">Apăsați butonul "Show log" pentru a afișa logurile în timp real</p>
@@ -574,13 +570,13 @@ const LogViewer = ({ machine }: LogViewerProps) => {
           </div>
         ) : (
           <div className="relative">
-            <div className="flex flex-col h-[70vh] bg-black text-white font-mono">
+            <div className="flex flex-col h-[70vh] bg-mobaxterm-background text-mobaxterm-foreground font-mono">
               <div 
                 ref={terminalOutputRef}
                 className="flex-1 p-4 overflow-auto"
                 style={{ fontFamily: 'Consolas, Monaco, "Andale Mono", monospace' }}
               >
-                <div className="text-green-400 mb-4">
+                <div className="text-mobaxterm-green mb-4">
                   Conectat la {machine.hostname} ({machine.ip}) ca {machine.sshUsername}
                   <br />
                   Introduceți comenzi de terminal:
@@ -588,13 +584,13 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                 {terminalOutput ? (
                   <pre className="whitespace-pre-wrap">{terminalOutput}</pre>
                 ) : (
-                  <div className="text-gray-500 italic">
+                  <div className="text-mobaxterm-brightBlack italic">
                     Introduceți o comandă și apăsați Enter pentru a o executa
                   </div>
                 )}
               </div>
-              <div className="border-t border-gray-700 p-2 flex items-center">
-                <span className="text-green-400 mr-2">$</span>
+              <div className="border-t border-mobaxterm-brightBlack p-2 flex items-center">
+                <span className="text-mobaxterm-green mr-2">$</span>
                 <Input
                   ref={terminalInputRef}
                   value={terminalCommand}
@@ -602,11 +598,11 @@ const LogViewer = ({ machine }: LogViewerProps) => {
                   onKeyDown={handleTerminalKeyDown}
                   placeholder="Introduceți o comandă..."
                   disabled={isExecuting}
-                  className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-white"
+                  className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-mobaxterm-white"
                   autoFocus
                 />
                 {isExecuting && (
-                  <div className="animate-spin ml-2 h-4 w-4 border-2 border-gray-400 border-t-white rounded-full"></div>
+                  <div className="animate-spin ml-2 h-4 w-4 border-2 border-mobaxterm-brightBlack border-t-mobaxterm-white rounded-full"></div>
                 )}
               </div>
             </div>

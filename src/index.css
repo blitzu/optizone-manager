@@ -50,6 +50,69 @@
   }
 }
 
+/* MobaXterm 3024 Night theme color variables */
+:root {
+  --mobaxterm-background: #090300;
+  --mobaxterm-foreground: #a5a2a2;
+  --mobaxterm-cursor: #a5a2a2;
+  --mobaxterm-black: #090300;
+  --mobaxterm-red: #db2d20;
+  --mobaxterm-green: #01a252;
+  --mobaxterm-yellow: #fded02;
+  --mobaxterm-blue: #01a0e4;
+  --mobaxterm-magenta: #a16a94;
+  --mobaxterm-cyan: #b5e4f4;
+  --mobaxterm-white: #a5a2a2;
+  --mobaxterm-brightBlack: #5c5855;
+  --mobaxterm-brightRed: #e8bbd0;
+  --mobaxterm-brightGreen: #3a3432;
+  --mobaxterm-brightYellow: #4a4543;
+  --mobaxterm-brightBlue: #807c7c;
+  --mobaxterm-brightMagenta: #d6d5d4;
+  --mobaxterm-brightCyan: #cdab53;
+  --mobaxterm-brightWhite: #f7f7f7;
+}
+
+/* Generate utility classes for MobaXterm colors */
+.text-mobaxterm-background { color: var(--mobaxterm-background); }
+.text-mobaxterm-foreground { color: var(--mobaxterm-foreground); }
+.text-mobaxterm-cursor { color: var(--mobaxterm-cursor); }
+.text-mobaxterm-black { color: var(--mobaxterm-black); }
+.text-mobaxterm-red { color: var(--mobaxterm-red); }
+.text-mobaxterm-green { color: var(--mobaxterm-green); }
+.text-mobaxterm-yellow { color: var(--mobaxterm-yellow); }
+.text-mobaxterm-blue { color: var(--mobaxterm-blue); }
+.text-mobaxterm-magenta { color: var(--mobaxterm-magenta); }
+.text-mobaxterm-cyan { color: var(--mobaxterm-cyan); }
+.text-mobaxterm-white { color: var(--mobaxterm-white); }
+.text-mobaxterm-brightBlack { color: var(--mobaxterm-brightBlack); }
+.text-mobaxterm-brightRed { color: var(--mobaxterm-brightRed); }
+.text-mobaxterm-brightGreen { color: var(--mobaxterm-brightGreen); }
+.text-mobaxterm-brightYellow { color: var(--mobaxterm-brightYellow); }
+.text-mobaxterm-brightBlue { color: var(--mobaxterm-brightBlue); }
+.text-mobaxterm-brightMagenta { color: var(--mobaxterm-brightMagenta); }
+.text-mobaxterm-brightCyan { color: var(--mobaxterm-brightCyan); }
+.text-mobaxterm-brightWhite { color: var(--mobaxterm-brightWhite); }
+
+.bg-mobaxterm-background { background-color: var(--mobaxterm-background); }
+.bg-mobaxterm-foreground { background-color: var(--mobaxterm-foreground); }
+.bg-mobaxterm-black { background-color: var(--mobaxterm-black); }
+.bg-mobaxterm-red { background-color: var(--mobaxterm-red); }
+.bg-mobaxterm-green { background-color: var(--mobaxterm-green); }
+.bg-mobaxterm-yellow { background-color: var(--mobaxterm-yellow); }
+.bg-mobaxterm-blue { background-color: var(--mobaxterm-blue); }
+.bg-mobaxterm-magenta { background-color: var(--mobaxterm-magenta); }
+.bg-mobaxterm-cyan { background-color: var(--mobaxterm-cyan); }
+.bg-mobaxterm-white { background-color: var(--mobaxterm-white); }
+.bg-mobaxterm-brightBlack { background-color: var(--mobaxterm-brightBlack); }
+.bg-mobaxterm-brightRed { background-color: var(--mobaxterm-brightRed); }
+.bg-mobaxterm-brightGreen { background-color: var(--mobaxterm-brightGreen); }
+.bg-mobaxterm-brightYellow { background-color: var(--mobaxterm-brightYellow); }
+.bg-mobaxterm-brightBlue { background-color: var(--mobaxterm-brightBlue); }
+.bg-mobaxterm-brightMagenta { background-color: var(--mobaxterm-brightMagenta); }
+.bg-mobaxterm-brightCyan { background-color: var(--mobaxterm-brightCyan); }
+.bg-mobaxterm-brightWhite { background-color: var(--mobaxterm-brightWhite); }
+
 /* Reguli stricte pentru forțarea formatului 24h pentru input time */
 input[type="time"] {
   -webkit-appearance: none !important;
