@@ -12,6 +12,28 @@ const API_URL = appConfig.apiUrl;
  */
 export const sshService = {
   /**
+   * Verifică dacă o mașină răspunde la ping
+   */
+  pingMachine: async (machine: Machine): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem('auth-token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      const response = await axios.post(`${API_URL}/ping`, { ip: machine.ip }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return response.data.success;
+    } catch (error) {
+      console.error('Eroare la ping:', error);
+      return false;
+    }
+  },
+
+  /**
    * Extrage log-uri de pe o mașină remote
    */
   fetchLogs: async (request: LogRequest): Promise<LogEntry[]> => {
