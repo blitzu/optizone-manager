@@ -20,7 +20,6 @@ interface MachineManagerProps {
 }
 
 interface MachineWithStatus extends Machine {
-  isOnline?: boolean;      // Răspunde la ping
   isSSHConnected?: boolean; // Conexiune SSH activă
   lastChecked?: Date;
 }
@@ -47,6 +46,7 @@ const MachineManager = ({
   const statusCheckIntervalRef = useRef<number | null>(null);
   const { currentUser } = useAuth();
   const activeSSHConnectionsRef = useRef<{[key: string]: boolean}>({});
+  const isComponentVisibleRef = useRef(true);
 
   useEffect(() => {
     if (currentUser && currentUser.id) {
@@ -56,9 +56,14 @@ const MachineManager = ({
       console.log("MachineManager: nu există utilizator autentificat sau id lipsește");
     }
 
+    isComponentVisibleRef.current = true;
+    
     return () => {
+      isComponentVisibleRef.current = false;
+      
       if (statusCheckIntervalRef.current) {
         clearInterval(statusCheckIntervalRef.current);
+        statusCheckIntervalRef.current = null;
       }
     };
   }, [currentUser]);
@@ -69,7 +74,6 @@ const MachineManager = ({
         const existingMachine = prevMachinesWithStatus.find(m => m.id === machine.id);
         return {
           ...machine,
-          isOnline: existingMachine?.isOnline,
           isSSHConnected: existingMachine?.isSSHConnected,
           lastChecked: existingMachine?.lastChecked
         };
@@ -78,11 +82,18 @@ const MachineManager = ({
   }, [machines]);
 
   useEffect(() => {
-    if (machinesWithStatus.length > 0 && !statusCheckIntervalRef.current) {
+    if (statusCheckIntervalRef.current) {
+      clearInterval(statusCheckIntervalRef.current);
+      statusCheckIntervalRef.current = null;
+    }
+    
+    if (machinesWithStatus.length > 0 && isComponentVisibleRef.current) {
       checkMachinesStatus();
       
       statusCheckIntervalRef.current = window.setInterval(() => {
-        checkMachinesStatus();
+        if (isComponentVisibleRef.current) {
+          checkMachinesStatus();
+        }
       }, 30000);
     }
 
@@ -95,100 +106,75 @@ const MachineManager = ({
   }, [machinesWithStatus]);
 
   const checkMachinesStatus = async () => {
-    if (checkingStatus || machinesWithStatus.length === 0) return;
+    if (checkingStatus || machinesWithStatus.length === 0 || !isComponentVisibleRef.current) return;
     
     setCheckingStatus(true);
     
     try {
-      console.log("Verificare status pentru mașini...");
+      console.log("Verificare status SSH pentru mașini...");
       const updatedMachines = [...machinesWithStatus];
       
       for (let i = 0; i < updatedMachines.length; i++) {
         const machine = updatedMachines[i];
         const machineId = machine.id;
         
-        if (activeSSHConnectionsRef.current[machineId]) {
+        if (!activeSSHConnectionsRef.current[machineId]) {
           try {
-            console.log(`Verificare conexiune SSH activă pentru ${machine.hostname}`);
+            console.log(`Verificare conexiune SSH pentru ${machine.hostname}`);
             const sshResult = await sshService.testConnection(machine);
             
             if (sshResult.success) {
+              activeSSHConnectionsRef.current[machineId] = true;
               updatedMachines[i] = {
                 ...updatedMachines[i],
-                isOnline: true,
                 isSSHConnected: true,
                 lastChecked: new Date()
               };
-              console.log(`Conexiune SSH activă menținută cu ${machine.hostname}`);
+              console.log(`Conexiune SSH stabilită cu ${machine.hostname}`);
             } else {
               activeSSHConnectionsRef.current[machineId] = false;
-              const pingResult = await sshService.pingMachine(machine);
-              
               updatedMachines[i] = {
                 ...updatedMachines[i],
-                isOnline: pingResult,
                 isSSHConnected: false,
                 lastChecked: new Date()
               };
-              console.log(`Conexiune SSH pierdută cu ${machine.hostname}, ping: ${pingResult ? 'reușit' : 'eșuat'}`);
+              console.log(`Conexiune SSH eșuată pentru ${machine.hostname}: ${sshResult.message}`);
             }
           } catch (error) {
-            console.error(`Eroare la verificarea conexiunii SSH active cu ${machine.hostname}:`, error);
+            console.error(`Eroare la verificarea conexiunii SSH cu ${machine.hostname}:`, error);
             activeSSHConnectionsRef.current[machineId] = false;
-            
-            const pingResult = await sshService.pingMachine(machine);
-            
             updatedMachines[i] = {
               ...updatedMachines[i],
-              isOnline: pingResult,
               isSSHConnected: false,
               lastChecked: new Date()
             };
           }
         } else {
           try {
-            console.log(`Verificare ping pentru ${machine.hostname}`);
-            const pingResult = await sshService.pingMachine(machine);
+            console.log(`Verificare menținere conexiune SSH pentru ${machine.hostname}`);
+            const sshResult = await sshService.testConnection(machine);
             
-            if (pingResult) {
-              console.log(`Ping reușit pentru ${machine.hostname}, se încearcă conectarea SSH`);
-              const sshResult = await sshService.testConnection(machine);
-              
-              if (sshResult.success) {
-                activeSSHConnectionsRef.current[machineId] = true;
-                updatedMachines[i] = {
-                  ...updatedMachines[i],
-                  isOnline: true,
-                  isSSHConnected: true,
-                  lastChecked: new Date()
-                };
-                console.log(`Conexiune SSH stabilită cu ${machine.hostname}`);
-              } else {
-                activeSSHConnectionsRef.current[machineId] = false;
-                updatedMachines[i] = {
-                  ...updatedMachines[i],
-                  isOnline: true,
-                  isSSHConnected: false,
-                  lastChecked: new Date()
-                };
-                console.log(`Ping reușit, dar SSH eșuat pentru ${machine.hostname}: ${sshResult.message}`);
-              }
-            } else {
+            if (!sshResult.success) {
               activeSSHConnectionsRef.current[machineId] = false;
               updatedMachines[i] = {
                 ...updatedMachines[i],
-                isOnline: false,
                 isSSHConnected: false,
                 lastChecked: new Date()
               };
-              console.log(`Ping eșuat pentru ${machine.hostname}, mașină offline`);
+              console.log(`Conexiune SSH pierdută cu ${machine.hostname}`);
+            } else {
+              updatedMachines[i] = {
+                ...updatedMachines[i],
+                isSSHConnected: true,
+                lastChecked: new Date()
+              };
+              console.log(`Conexiune SSH menținută cu ${machine.hostname}`);
             }
           } catch (error) {
-            console.error(`Eroare la verificarea mașinii ${machine.hostname}:`, error);
+            console.error(`Eroare la verificarea menținerii conexiunii SSH cu ${machine.hostname}:`, error);
             activeSSHConnectionsRef.current[machineId] = false;
             updatedMachines[i] = {
               ...updatedMachines[i],
-              isOnline: false,
               isSSHConnected: false,
               lastChecked: new Date()
             };
@@ -198,7 +184,7 @@ const MachineManager = ({
       
       setMachinesWithStatus(updatedMachines);
     } catch (error) {
-      console.error("Eroare la verificarea status-ului mașinilor:", error);
+      console.error("Eroare la verificarea status-ului SSH al mașinilor:", error);
     } finally {
       setCheckingStatus(false);
     }
@@ -438,33 +424,8 @@ const MachineManager = ({
   const connectSSH = async (machine: Machine) => {
     try {
       toast({
-        title: "Verificare status",
-        description: `Se verifică status-ul pentru ${machine.hostname} (${machine.ip})...`,
-      });
-      
-      const pingResult = await sshService.pingMachine(machine);
-      
-      if (!pingResult) {
-        toast({
-          title: "Mașină offline",
-          description: `Mașina ${machine.hostname} nu răspunde la ping.`,
-          variant: "destructive"
-        });
-        
-        setMachinesWithStatus(prev => 
-          prev.map(m => 
-            m.id === machine.id 
-              ? { ...m, isOnline: false, isSSHConnected: false, lastChecked: new Date() } 
-              : m
-          )
-        );
-        
-        return;
-      }
-      
-      toast({
-        title: "Mașină online",
-        description: `Mașina ${machine.hostname} răspunde la ping. Se încearcă conectarea SSH...`,
+        title: "Verificare conexiune SSH",
+        description: `Se testează conexiunea SSH cu ${machine.hostname} (${machine.ip})...`,
       });
       
       const sshResult = await sshService.testConnection(machine);
@@ -475,7 +436,7 @@ const MachineManager = ({
         setMachinesWithStatus(prev => 
           prev.map(m => 
             m.id === machine.id 
-              ? { ...m, isOnline: true, isSSHConnected: true, lastChecked: new Date() } 
+              ? { ...m, isSSHConnected: true, lastChecked: new Date() } 
               : m
           )
         );
@@ -490,7 +451,7 @@ const MachineManager = ({
         setMachinesWithStatus(prev => 
           prev.map(m => 
             m.id === machine.id 
-              ? { ...m, isOnline: true, isSSHConnected: false, lastChecked: new Date() } 
+              ? { ...m, isSSHConnected: false, lastChecked: new Date() } 
               : m
           )
         );
@@ -507,7 +468,7 @@ const MachineManager = ({
       setMachinesWithStatus(prev => 
         prev.map(m => 
           m.id === machine.id 
-            ? { ...m, isOnline: false, isSSHConnected: false, lastChecked: new Date() } 
+            ? { ...m, isSSHConnected: false, lastChecked: new Date() } 
             : m
         )
       );
@@ -522,13 +483,8 @@ const MachineManager = ({
 
   const getSortedMachines = () => {
     return [...machinesWithStatus].sort((a, b) => {
-      if (a.isOnline === false && b.isOnline !== false) return -1;
-      if (a.isOnline !== false && b.isOnline === false) return 1;
-      
-      if (a.isOnline === true && b.isOnline === true) {
-        if (a.isSSHConnected !== b.isSSHConnected) {
-          return a.isSSHConnected ? 1 : -1;
-        }
+      if (a.isSSHConnected !== b.isSSHConnected) {
+        return a.isSSHConnected ? 1 : -1;
       }
       
       return a.hostname.localeCompare(b.hostname);
@@ -566,7 +522,7 @@ const MachineManager = ({
               disabled={checkingStatus}
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${checkingStatus ? 'animate-spin' : ''}`} />
-              {checkingStatus ? "Verificare..." : "Verifică status"}
+              {checkingStatus ? "Verificare..." : "Verifică status SSH"}
             </Button>
             <Button 
               variant="outline" 
@@ -608,44 +564,31 @@ const MachineManager = ({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="flex items-center space-x-2">
-                          {machine.isOnline === undefined ? (
+                          {machine.isSSHConnected === undefined ? (
                             <div className="flex items-center">
                               <div className="h-3 w-3 rounded-full bg-gray-300 mr-2"></div>
                               <span className="text-xs text-muted-foreground">Necunoscut</span>
                             </div>
-                          ) : machine.isOnline ? (
-                            <>
-                              {machine.isSSHConnected ? (
-                                <div className="flex items-center">
-                                  <div className="h-3 w-3 rounded-full bg-green-500 mr-2"></div>
-                                  <Terminal className="h-4 w-4 text-green-500" />
-                                </div>
-                              ) : (
-                                <div className="flex items-center">
-                                  <div className="h-3 w-3 rounded-full bg-yellow-500 mr-2"></div>
-                                  <Wifi className="h-4 w-4 text-yellow-500" />
-                                </div>
-                              )}
-                            </>
+                          ) : machine.isSSHConnected ? (
+                            <div className="flex items-center">
+                              <div className="h-3 w-3 rounded-full bg-green-500 mr-2"></div>
+                              <Terminal className="h-4 w-4 text-green-500" />
+                            </div>
                           ) : (
                             <div className="flex items-center">
                               <div className="h-3 w-3 rounded-full bg-red-500 mr-2"></div>
-                              <WifiOff className="h-4 w-4 text-red-500" />
+                              <Terminal className="h-4 w-4 text-red-500" />
                             </div>
                           )}
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
-                        {machine.isOnline === undefined ? (
+                        {machine.isSSHConnected === undefined ? (
                           <span>Status necunoscut</span>
-                        ) : machine.isOnline ? (
-                          machine.isSSHConnected ? (
-                            <span>Online - Conexiune SSH activă</span>
-                          ) : (
-                            <span>Online - Răspunde la ping, dar fără conexiune SSH</span>
-                          )
+                        ) : machine.isSSHConnected ? (
+                          <span>Conexiune SSH activă</span>
                         ) : (
-                          <span>Offline - Nu răspunde la ping</span>
+                          <span>Fără conexiune SSH</span>
                         )}
                         {machine.lastChecked && (
                           <div className="text-xs text-muted-foreground mt-1">

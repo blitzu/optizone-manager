@@ -12,52 +12,47 @@ const API_URL = appConfig.apiUrl;
  */
 export const sshService = {
   /**
-   * Verifică dacă o mașină răspunde la ping
+   * Testează conexiunea SSH la o mașină
    */
-  pingMachine: async (machine: Machine): Promise<boolean> => {
+  testConnection: async (machine: Machine): Promise<{ success: boolean; message: string }> => {
     try {
-      console.log(`Ping machine: ${machine.hostname} (${machine.ip})`);
+      console.log(`Testing SSH connection to: ${machine.hostname} (${machine.ip})`);
       const token = localStorage.getItem('auth-token');
       if (!token) {
-        console.error('Ping eșuat: Nu s-a găsit token de autentificare');
+        console.error('SSH test eșuat: Nu s-a găsit token de autentificare');
         throw new Error('No authentication token found');
       }
       
       // Adăugăm timeout pentru a evita așteptarea prea lungă
-      const response = await axios.post(`${API_URL}/ping`, { ip: machine.ip }, {
+      const response = await axios.post(`${API_URL}/test-connection`, machine, {
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        timeout: 10000 // 10 secunde timeout
+        timeout: 15000 // 15 secunde timeout
       });
       
-      console.log(`Ping response for ${machine.hostname}:`, response.data);
+      console.log(`SSH connection test response for ${machine.hostname}:`, response.data);
       
-      // Verificăm mai detaliat răspunsul pentru a diagnostica problema
+      // Verificăm explicit ce conține response.data
       if (!response.data) {
-        console.error(`Ping eșuat pentru ${machine.hostname}: răspunsul nu conține date`);
-        return false;
+        console.error(`Test SSH eșuat pentru ${machine.hostname}: răspunsul nu conține date`);
+        return { success: false, message: "Răspuns invalid de la server" };
       }
       
-      // Verificăm explicit ce conține response.data pentru a înțelege răspunsul
-      console.log(`Ping response type: ${typeof response.data}`);
-      console.log(`Ping response keys:`, Object.keys(response.data));
-      console.log(`Ping response success value: ${response.data.success}`);
-      
-      // Verificăm dacă răspunsul conține proprietatea success cu valoarea true
-      return response.data && response.data.success === true;
+      return response.data;
     } catch (error) {
-      console.error(`Eroare la ping pentru ${machine.hostname}:`, error);
+      console.error(`Eroare la testarea conexiunii SSH pentru ${machine.hostname}:`, error);
       // Adăugăm mai multe detalii despre eroare
       if (axios.isAxiosError(error)) {
-        console.error(`Detalii eroare Axios pentru ${machine.hostname}:`, {
+        console.error(`Detalii eroare Axios pentru testare SSH ${machine.hostname}:`, {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
           message: error.message
         });
       }
-      return false;
+      
+      throw error;
     }
   },
 
@@ -117,51 +112,6 @@ export const sshService = {
         description: "Nu s-au putut descărca log-urile. Verificați conexiunea SSH.",
         variant: "destructive"
       });
-      throw error;
-    }
-  },
-  
-  /**
-   * Testează conexiunea SSH la o mașină
-   */
-  testConnection: async (machine: Machine): Promise<{ success: boolean; message: string }> => {
-    try {
-      console.log(`Testing SSH connection to: ${machine.hostname} (${machine.ip})`);
-      const token = localStorage.getItem('auth-token');
-      if (!token) {
-        console.error('SSH test eșuat: Nu s-a găsit token de autentificare');
-        throw new Error('No authentication token found');
-      }
-      
-      // Adăugăm timeout pentru a evita așteptarea prea lungă
-      const response = await axios.post(`${API_URL}/test-connection`, machine, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        timeout: 15000 // 15 secunde timeout
-      });
-      
-      console.log(`SSH connection test response for ${machine.hostname}:`, response.data);
-      
-      // Verificăm explicit ce conține response.data
-      if (!response.data) {
-        console.error(`Test SSH eșuat pentru ${machine.hostname}: răspunsul nu conține date`);
-        return { success: false, message: "Răspuns invalid de la server" };
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error(`Eroare la testarea conexiunii SSH pentru ${machine.hostname}:`, error);
-      // Adăugăm mai multe detalii despre eroare
-      if (axios.isAxiosError(error)) {
-        console.error(`Detalii eroare Axios pentru testare SSH ${machine.hostname}:`, {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          message: error.message
-        });
-      }
-      
       throw error;
     }
   },
