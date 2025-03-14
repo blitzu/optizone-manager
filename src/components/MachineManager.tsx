@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Machine, MachineResponse } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Edit, Trash2, Server, Terminal, RefreshCw, Wifi, WifiOff, Server as ServerIcon } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { appConfig } from "@/config/appConfig";
 import { sshService } from "@/services/sshService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,7 +46,6 @@ const MachineManager = ({
   const [checkingStatus, setCheckingStatus] = useState(false);
   const statusCheckIntervalRef = useRef<number | null>(null);
   const { currentUser } = useAuth();
-  // Obiect pentru a ține evidența conexiunilor SSH active
   const activeSSHConnectionsRef = useRef<{[key: string]: boolean}>({});
 
   useEffect(() => {
@@ -66,7 +64,6 @@ const MachineManager = ({
   }, [currentUser]);
 
   useEffect(() => {
-    // Update the machinesWithStatus array when machines change
     setMachinesWithStatus(prevMachinesWithStatus => {
       return machines.map(machine => {
         const existingMachine = prevMachinesWithStatus.find(m => m.id === machine.id);
@@ -81,11 +78,9 @@ const MachineManager = ({
   }, [machines]);
 
   useEffect(() => {
-    // Start the status check interval when machinesWithStatus changes
     if (machinesWithStatus.length > 0 && !statusCheckIntervalRef.current) {
       checkMachinesStatus();
       
-      // Set up interval to check status every 30 seconds
       statusCheckIntervalRef.current = window.setInterval(() => {
         checkMachinesStatus();
       }, 30000);
@@ -112,14 +107,12 @@ const MachineManager = ({
         const machine = updatedMachines[i];
         const machineId = machine.id;
         
-        // Dacă avem deja o conexiune SSH activă, verificăm doar dacă ea este încă validă
         if (activeSSHConnectionsRef.current[machineId]) {
           try {
             console.log(`Verificare conexiune SSH activă pentru ${machine.hostname}`);
             const sshResult = await sshService.testConnection(machine);
             
             if (sshResult.success) {
-              // Conexiunea SSH este în continuare activă
               updatedMachines[i] = {
                 ...updatedMachines[i],
                 isOnline: true,
@@ -128,9 +121,7 @@ const MachineManager = ({
               };
               console.log(`Conexiune SSH activă menținută cu ${machine.hostname}`);
             } else {
-              // Conexiunea SSH s-a pierdut, marcăm ca inactivă
               activeSSHConnectionsRef.current[machineId] = false;
-              // Încercăm să facem ping pentru a verifica dacă mașina răspunde
               const pingResult = await sshService.pingMachine(machine);
               
               updatedMachines[i] = {
@@ -145,7 +136,6 @@ const MachineManager = ({
             console.error(`Eroare la verificarea conexiunii SSH active cu ${machine.hostname}:`, error);
             activeSSHConnectionsRef.current[machineId] = false;
             
-            // Încercăm să facem ping pentru a verifica dacă mașina răspunde
             const pingResult = await sshService.pingMachine(machine);
             
             updatedMachines[i] = {
@@ -156,18 +146,15 @@ const MachineManager = ({
             };
           }
         } else {
-          // Nu avem conexiune SSH activă, verificăm mai întâi ping-ul
           try {
             console.log(`Verificare ping pentru ${machine.hostname}`);
             const pingResult = await sshService.pingMachine(machine);
             
             if (pingResult) {
               console.log(`Ping reușit pentru ${machine.hostname}, se încearcă conectarea SSH`);
-              // Ping reușit, încercăm conexiunea SSH
               const sshResult = await sshService.testConnection(machine);
               
               if (sshResult.success) {
-                // Conexiune SSH reușită, marcăm ca activă
                 activeSSHConnectionsRef.current[machineId] = true;
                 updatedMachines[i] = {
                   ...updatedMachines[i],
@@ -177,7 +164,6 @@ const MachineManager = ({
                 };
                 console.log(`Conexiune SSH stabilită cu ${machine.hostname}`);
               } else {
-                // Ping reușit, dar SSH eșuat
                 activeSSHConnectionsRef.current[machineId] = false;
                 updatedMachines[i] = {
                   ...updatedMachines[i],
@@ -188,7 +174,6 @@ const MachineManager = ({
                 console.log(`Ping reușit, dar SSH eșuat pentru ${machine.hostname}: ${sshResult.message}`);
               }
             } else {
-              // Ping eșuat, mașina este offline
               activeSSHConnectionsRef.current[machineId] = false;
               updatedMachines[i] = {
                 ...updatedMachines[i],
@@ -457,7 +442,6 @@ const MachineManager = ({
         description: `Se verifică status-ul pentru ${machine.hostname} (${machine.ip})...`,
       });
       
-      // Verificăm mai întâi dacă mașina răspunde la ping
       const pingResult = await sshService.pingMachine(machine);
       
       if (!pingResult) {
@@ -467,7 +451,6 @@ const MachineManager = ({
           variant: "destructive"
         });
         
-        // Actualizăm statusul mașinii
         setMachinesWithStatus(prev => 
           prev.map(m => 
             m.id === machine.id 
@@ -484,14 +467,11 @@ const MachineManager = ({
         description: `Mașina ${machine.hostname} răspunde la ping. Se încearcă conectarea SSH...`,
       });
       
-      // Încercăm să stabilim conexiunea SSH
       const sshResult = await sshService.testConnection(machine);
       
       if (sshResult.success) {
-        // Conexiune SSH reușită, o marcăm ca activă
         activeSSHConnectionsRef.current[machine.id] = true;
         
-        // Actualizăm statusul mașinii
         setMachinesWithStatus(prev => 
           prev.map(m => 
             m.id === machine.id 
@@ -505,10 +485,8 @@ const MachineManager = ({
           description: `Conexiune SSH stabilită cu ${machine.hostname}`,
         });
       } else {
-        // Conexiune SSH eșuată
         activeSSHConnectionsRef.current[machine.id] = false;
         
-        // Actualizăm statusul mașinii
         setMachinesWithStatus(prev => 
           prev.map(m => 
             m.id === machine.id 
@@ -524,10 +502,8 @@ const MachineManager = ({
         });
       }
     } catch (error) {
-      // Eroare de conexiune
       activeSSHConnectionsRef.current[machine.id] = false;
       
-      // Actualizăm statusul mașinii
       setMachinesWithStatus(prev => 
         prev.map(m => 
           m.id === machine.id 
@@ -542,6 +518,21 @@ const MachineManager = ({
         variant: "destructive"
       });
     }
+  };
+
+  const getSortedMachines = () => {
+    return [...machinesWithStatus].sort((a, b) => {
+      if (a.isOnline === false && b.isOnline !== false) return -1;
+      if (a.isOnline !== false && b.isOnline === false) return 1;
+      
+      if (a.isOnline === true && b.isOnline === true) {
+        if (a.isSSHConnected !== b.isSSHConnected) {
+          return a.isSSHConnected ? 1 : -1;
+        }
+      }
+      
+      return a.hostname.localeCompare(b.hostname);
+    });
   };
 
   if (isLoading) {
@@ -559,6 +550,8 @@ const MachineManager = ({
       </Card>
     );
   }
+
+  const sortedMachines = getSortedMachines();
 
   return (
     <Card>
@@ -605,7 +598,7 @@ const MachineManager = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {machinesWithStatus.map(machine => (
+              {sortedMachines.map(machine => (
                 <TableRow 
                   key={machine.id} 
                   className={`cursor-pointer ${selectedMachine?.id === machine.id ? 'bg-muted' : ''}`}
