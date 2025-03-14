@@ -16,8 +16,10 @@ export const sshService = {
    */
   pingMachine: async (machine: Machine): Promise<boolean> => {
     try {
+      console.log(`Ping machine: ${machine.hostname} (${machine.ip})`);
       const token = localStorage.getItem('auth-token');
       if (!token) {
+        console.error('Ping eșuat: Nu s-a găsit token de autentificare');
         throw new Error('No authentication token found');
       }
       
@@ -26,9 +28,11 @@ export const sshService = {
           'Authorization': `Bearer ${token}`
         }
       });
-      return response.data.success;
+      
+      console.log(`Ping response for ${machine.hostname}:`, response.data);
+      return response.data && response.data.success === true;
     } catch (error) {
-      console.error('Eroare la ping:', error);
+      console.error(`Eroare la ping pentru ${machine.hostname}:`, error);
       return false;
     }
   },
@@ -98,8 +102,10 @@ export const sshService = {
    */
   testConnection: async (machine: Machine): Promise<{ success: boolean; message: string }> => {
     try {
+      console.log(`Testing SSH connection to: ${machine.hostname} (${machine.ip})`);
       const token = localStorage.getItem('auth-token');
       if (!token) {
+        console.error('SSH test eșuat: Nu s-a găsit token de autentificare');
         throw new Error('No authentication token found');
       }
       
@@ -108,9 +114,11 @@ export const sshService = {
           'Authorization': `Bearer ${token}`
         }
       });
+      
+      console.log(`SSH connection test response for ${machine.hostname}:`, response.data);
       return response.data;
     } catch (error) {
-      console.error('Eroare la testarea conexiunii:', error);
+      console.error(`Eroare la testarea conexiunii SSH pentru ${machine.hostname}:`, error);
       throw error;
     }
   },
