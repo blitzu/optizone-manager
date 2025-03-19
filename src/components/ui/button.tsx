@@ -40,10 +40,12 @@ export interface ButtonProps
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
   tooltip?: string
+  tooltipSide?: "top" | "bottom" | "left" | "right"
+  tooltipAlign?: "start" | "center" | "end"
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, tooltip, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, tooltip, tooltipSide = "top", tooltipAlign = "center", ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     
     if (tooltip) {
@@ -57,7 +59,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                 {...props}
               />
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent side={tooltipSide} align={tooltipAlign}>
               <p>{tooltip}</p>
             </TooltipContent>
           </Tooltip>

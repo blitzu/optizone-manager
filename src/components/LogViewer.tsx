@@ -481,6 +481,7 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
                 variant="outline" 
                 size="sm" 
                 onClick={onBackToList}
+                tooltip="Înapoi la lista de mașini"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Înapoi la lista de mașini
@@ -493,6 +494,7 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
               variant="outline" 
               onClick={() => setActiveView("terminal")}
               className={activeView === "terminal" ? "bg-secondary" : ""}
+              tooltip="Deschide terminalul pentru a executa comenzi"
             >
               <TerminalIcon className="h-4 w-4 mr-2" />
               Terminal
@@ -504,6 +506,7 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
                 if (!liveMode) startLiveMode();
               }}
               className={activeView === "logs" && liveMode ? "bg-secondary" : ""}
+              tooltip="Vizualizează log-urile aplicației"
             >
               <FileText className="h-4 w-4 mr-2" />
               Show log
@@ -512,6 +515,7 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
               variant="outline" 
               onClick={toggleLiveMode}
               className={liveMode ? "bg-secondary" : ""}
+              tooltip={liveMode ? "Oprește actualizarea automată a log-urilor" : "Pornește actualizarea automată a log-urilor"}
             >
               {liveMode ? (
                 <PauseCircle className="h-4 w-4 mr-2" />
@@ -524,6 +528,7 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
               variant="outline" 
               onClick={toggleAutoScroll}
               className={autoScroll ? "bg-secondary" : ""}
+              tooltip={autoScroll ? "Dezactivează derularea automată la log-uri noi" : "Activează derularea automată la log-uri noi"}
             >
               <ArrowDown className="h-4 w-4 mr-2" />
               {autoScroll ? "Oprește autoscroll" : "Pornește autoscroll"}
@@ -534,6 +539,7 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
                 setActiveView("terminal");
                 restartEEService();
               }}
+              tooltip="Repornește serviciul aixp_ee"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Restart EE
@@ -543,6 +549,7 @@ const LogViewer = ({ machine, onBackToList }: LogViewerProps) => {
                 variant="outline" 
                 onClick={downloadLogs} 
                 disabled={logs.length === 0 || loading}
+                tooltip="Descarcă log-urile în format text"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Descarcă log-uri

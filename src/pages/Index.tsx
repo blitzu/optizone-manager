@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -139,7 +140,7 @@ const Index = () => {
             Conectat ca: <span className="font-medium">{currentUser?.username}</span> 
             ({currentUser?.role === 'admin' ? 'Administrator' : 'Utilizator'})
           </div>
-          <Button variant="outline" size="sm" onClick={logout}>
+          <Button variant="outline" size="sm" onClick={logout} tooltip="Deconectare de la aplicație">
             <LogOut className="h-4 w-4 mr-2" />
             Deconectare
           </Button>
@@ -169,6 +170,7 @@ const Index = () => {
                 size="sm" 
                 onClick={handleRefreshMachines}
                 disabled={isLoading}
+                tooltip="Reîncarcă lista de mașini"
               >
                 {isLoading ? "Se încarcă..." : "Reîmprospătează lista"}
               </Button>
@@ -189,6 +191,7 @@ const Index = () => {
                 <Button 
                   variant="outline"
                   onClick={() => testSshConnection(selectedMachine)}
+                  tooltip="Verifică conexiunea SSH la acest PC"
                 >
                   Testează conexiunea SSH
                 </Button>
@@ -206,7 +209,12 @@ const Index = () => {
               ) : machines.length === 0 ? (
                 <div className="text-center">
                   <p className="text-muted-foreground mb-4">Nu există mașini disponibile pentru vizualizare.</p>
-                  <Button onClick={handleRefreshMachines}>Reîncarcă mașinile</Button>
+                  <Button 
+                    onClick={handleRefreshMachines}
+                    tooltip="Reîncarcă lista de mașini"
+                  >
+                    Reîncarcă mașinile
+                  </Button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
@@ -215,6 +223,7 @@ const Index = () => {
                       key={machine.id}
                       className="border rounded-md p-4 cursor-pointer hover:border-primary hover:bg-muted/50 transition-colors"
                       onClick={() => handleSelectMachine(machine)}
+                      title={`Vizualizează log-urile pentru ${machine.hostname} (${machine.ip})`}
                     >
                       <p className="font-medium">{machine.hostname}</p>
                       <p className="text-sm text-muted-foreground">{machine.ip}</p>
