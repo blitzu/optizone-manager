@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { appConfig } from "@/config/appConfig";
 import { sshService } from "@/services/sshService";
 import { useAuth } from "@/contexts/AuthContext";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface MachineManagerProps {
   machines: Machine[];
@@ -520,6 +520,7 @@ const MachineManager = ({
               size="sm" 
               onClick={checkMachinesStatus}
               disabled={checkingStatus}
+              tooltip="Verifică starea conexiunii SSH pentru toate mașinile"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${checkingStatus ? 'animate-spin' : ''}`} />
               {checkingStatus ? "Verificare..." : "Verifică status SSH"}
@@ -529,11 +530,17 @@ const MachineManager = ({
               size="sm" 
               onClick={fetchMachines}
               disabled={isLoading}
+              tooltip="Reîncarcă lista de mașini din baza de date"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               {isLoading ? "Se încarcă..." : "Reîmprospătează"}
             </Button>
-            <Button onClick={openAddDialog}>Adaugă mașină</Button>
+            <Button 
+              onClick={openAddDialog}
+              tooltip="Adaugă o mașină nouă în sistem"
+            >
+              Adaugă mașină
+            </Button>
           </div>
         </CardTitle>
       </CardHeader>
@@ -604,6 +611,7 @@ const MachineManager = ({
                     <Button 
                       variant="ghost" 
                       size="icon" 
+                      tooltip="Testează conexiunea SSH cu această mașină"
                       onClick={(e) => {
                         e.stopPropagation();
                         connectSSH(machine);
@@ -614,6 +622,7 @@ const MachineManager = ({
                     <Button 
                       variant="ghost" 
                       size="icon" 
+                      tooltip="Modifică detaliile mașinii"
                       onClick={(e) => {
                         e.stopPropagation();
                         openEditDialog(machine);
@@ -625,6 +634,7 @@ const MachineManager = ({
                       variant="ghost" 
                       size="icon" 
                       className="text-destructive hover:text-destructive"
+                      tooltip="Șterge această mașină"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(machine.id);
@@ -689,8 +699,19 @@ const MachineManager = ({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Anulează</Button>
-            <Button onClick={handleSubmit}>Salvează</Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setDialogOpen(false)}
+              tooltip="Închide dialogul fără a salva modificările"
+            >
+              Anulează
+            </Button>
+            <Button 
+              onClick={handleSubmit}
+              tooltip="Salvează informațiile introduse"
+            >
+              Salvează
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

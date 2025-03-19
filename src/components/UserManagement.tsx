@@ -106,7 +106,6 @@ const UserManagement = () => {
     }
   };
 
-  // Group and sort users
   const groupedUsers = {
     active: {
       admin: users
@@ -229,7 +228,7 @@ const UserManagement = () => {
     if (isSuperUser(userToManage.id)) {
       toast({
         title: "Operațiune interzisă",
-        description: "Nu se poate schimba parola pentru REALIZATORUL APLICATIEI.",
+        description: "Nu se poate schimba parola pentru REALIZATORUL APLICAȚIEI.",
         variant: "destructive",
       });
       setShowChangePasswordDialog(false);
@@ -548,7 +547,11 @@ const UserManagement = () => {
             </div>
             
             {error && <p className="text-red-500 text-sm">{error}</p>}
-            <Button type="submit" className="w-full">
+            <Button 
+              type="submit" 
+              className="w-full"
+              tooltip="Creează un cont nou de utilizator"
+            >
               <UserPlus className="h-4 w-4 mr-2" />
               Crează utilizator
             </Button>
@@ -559,7 +562,12 @@ const UserManagement = () => {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Utilizatori existenți</CardTitle>
-          <Button variant="outline" size="sm" onClick={loadUsers}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={loadUsers}
+            tooltip="Reîncarcă lista de utilizatori din baza de date"
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Reîmprospătează
           </Button>
@@ -571,7 +579,6 @@ const UserManagement = () => {
             <p className="text-muted-foreground">Nu există alți utilizatori.</p>
           ) : (
             <div className="space-y-6">
-              {/* Secțiunea utilizatori activi */}
               <Collapsible 
                 open={activeUsersOpen} 
                 onOpenChange={setActiveUsersOpen}
@@ -590,7 +597,6 @@ const UserManagement = () => {
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-4 px-2">
-                  {/* Subrubrica Administratori */}
                   <Collapsible 
                     open={adminUsersOpen} 
                     onOpenChange={setAdminUsersOpen}
@@ -617,7 +623,6 @@ const UserManagement = () => {
                   
                   <Separator className="my-4" />
                   
-                  {/* Subrubrica Utilizatori standard */}
                   <Collapsible 
                     open={regularUsersOpen} 
                     onOpenChange={setRegularUsersOpen}
@@ -643,7 +648,6 @@ const UserManagement = () => {
                 </CollapsibleContent>
               </Collapsible>
               
-              {/* Secțiunea utilizatori inactivi */}
               <Collapsible 
                 open={inactiveUsersOpen} 
                 onOpenChange={setInactiveUsersOpen}
@@ -674,7 +678,6 @@ const UserManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Dialog components remain unchanged */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent>
           <DialogHeader>
@@ -694,6 +697,7 @@ const UserManagement = () => {
               onClick={() => {
                 setShowPasswordDialog(false);
               }}
+              tooltip="Închide această fereastră"
             >
               Închide
             </Button>
@@ -711,6 +715,7 @@ const UserManagement = () => {
                   setShowEmailMessageDialog(true);
                 }
               }}
+              tooltip="Deschide dialogul pentru a trimite email utilizatorului"
             >
               Trimite email
             </Button>

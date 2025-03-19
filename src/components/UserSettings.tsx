@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const UserSettings = () => {
   const { currentUser, changePassword, logout } = useAuth();
@@ -119,9 +120,18 @@ const UserSettings = () => {
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
-            <Button type="submit" disabled={loading}>
-              {loading ? "Se procesează..." : "Schimbă parola"}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? "Se procesează..." : "Schimbă parola"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Actualizează parola contului dumneavoastră</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </form>
         </CardContent>
       </Card>
