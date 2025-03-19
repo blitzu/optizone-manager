@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Edit, Trash2, Server, Terminal, RefreshCw, Wifi, WifiOff, Server as ServerIcon } from "lucide-react";
+import { Edit, Trash2, Server, RefreshCw, Wifi, WifiOff, ServerOff } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { appConfig } from "@/config/appConfig";
 import { sshService } from "@/services/sshService";
@@ -567,17 +567,17 @@ const MachineManager = ({
                           {machine.isSSHConnected === undefined ? (
                             <div className="flex items-center">
                               <div className="h-3 w-3 rounded-full bg-gray-300 mr-2"></div>
-                              <span className="text-xs text-muted-foreground">Necunoscut</span>
+                              <ServerOff className="h-4 w-4 text-gray-400" />
                             </div>
                           ) : machine.isSSHConnected ? (
                             <div className="flex items-center">
                               <div className="h-3 w-3 rounded-full bg-green-500 mr-2"></div>
-                              <Terminal className="h-4 w-4 text-green-500" />
+                              <Wifi className="h-4 w-4 text-green-500" />
                             </div>
                           ) : (
                             <div className="flex items-center">
                               <div className="h-3 w-3 rounded-full bg-red-500 mr-2"></div>
-                              <Terminal className="h-4 w-4 text-red-500" />
+                              <WifiOff className="h-4 w-4 text-red-500" />
                             </div>
                           )}
                         </div>
@@ -609,7 +609,7 @@ const MachineManager = ({
                         connectSSH(machine);
                       }}
                     >
-                      <Terminal className="h-4 w-4" />
+                      <Server className="h-4 w-4" />
                     </Button>
                     <Button 
                       variant="ghost" 
