@@ -1,9 +1,8 @@
-
 import { type ToastProps, type ToastActionElement } from "@/components/ui/toast"
 import * as React from "react"
 
 const TOAST_LIMIT = 5
-const TOAST_REMOVE_DELAY = 5000 // 5 seconds
+const TOAST_REMOVE_DELAY = 8000
 
 type ToasterToast = {
   id: string
@@ -13,6 +12,7 @@ type ToasterToast = {
   variant?: "default" | "destructive"
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  duration?: number
 }
 
 const actionTypes = {
@@ -77,7 +77,6 @@ const reducer = (state: State, action: Action): State => {
     case actionTypes.DISMISS_TOAST: {
       const { toastId } = action
 
-      // Clear timeout when dismissing toast
       if (toastId) {
         if (toastTimeouts.has(toastId)) {
           clearTimeout(toastTimeouts.get(toastId))
@@ -140,7 +139,6 @@ function toast(props: ToastCreationProps) {
 
   const dismiss = () => dismissToast(id)
 
-  // Clear any existing timeout for this toast id to prevent duplicates
   if (toastTimeouts.has(id)) {
     clearTimeout(toastTimeouts.get(id))
     toastTimeouts.delete(id)
@@ -157,10 +155,10 @@ function toast(props: ToastCreationProps) {
     },
   })
 
-  // Set up auto-dismiss timeout
+  const duration = props.duration || TOAST_REMOVE_DELAY
   const timeoutId = setTimeout(() => {
     dismissToast(id)
-  }, TOAST_REMOVE_DELAY)
+  }, duration)
   
   toastTimeouts.set(id, timeoutId)
 
@@ -177,13 +175,12 @@ function dismissToast(toastId: string) {
     toastId,
   })
 
-  // Add a slight delay before removing from DOM to allow animation
   setTimeout(() => {
     dispatch({
       type: actionTypes.REMOVE_TOAST,
       toastId,
     })
-  }, 300) // Animation duration
+  }, 300)
 }
 
 function useToast() {
@@ -197,7 +194,6 @@ function useToast() {
         listeners.splice(index, 1)
       }
       
-      // Clean up any remaining timeouts when component unmounts
       for (const [id, timeout] of toastTimeouts.entries()) {
         clearTimeout(timeout)
         toastTimeouts.delete(id)
@@ -212,7 +208,6 @@ function useToast() {
       if (toastId) {
         dismissToast(toastId)
       } else {
-        // Dismiss all toasts if no id is provided
         state.toasts.forEach((t) => dismissToast(t.id))
       }
     },

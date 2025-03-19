@@ -90,6 +90,7 @@ const Index = () => {
       toast({
         title: "Se testează conexiunea SSH...",
         description: `Se încearcă conectarea la ${machine.hostname} (${machine.ip})`,
+        duration: 3000, // Durată scurtă pentru mesajul inițial
       });
 
       const result = await sshService.testConnection(machine);
@@ -98,19 +99,22 @@ const Index = () => {
         toast({
           title: "Conexiune reușită",
           description: result.message,
+          duration: 10000, // Durată mai lungă pentru notificarea de succes (10 secunde)
         });
       } else {
         toast({
           title: "Conexiune eșuată",
           description: result.message,
-          variant: "destructive"
+          variant: "destructive",
+          duration: 10000, // Durată mai lungă pentru erori (10 secunde)
         });
       }
     } catch (error) {
       toast({
         title: "Eroare",
         description: "Nu s-a putut testa conexiunea SSH. Verificați configurarea serverului.",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 10000, // Durată mai lungă pentru erori (10 secunde)
       });
     }
   };
